@@ -76,7 +76,7 @@ Todas estas funcionalidades están **implementadas y verificadas en producción*
 - **Relación con otras pantallas:** vuelve al Panel de facturas (3.3).
 
 ### Notas de navegación transversales
-- Todas las pantallas comparten una **cabecera fija** con: el nombre de la marca (enlaza a Inicio) a la izquierda, y dos enlaces de navegación a la derecha ("Ver facturas", "Subir facturas"), con el enlace de la sección activa resaltado visualmente.
+- Todas las pantallas comparten una **cabecera fija** con el nombre de la marca (enlaza a Inicio) a la izquierda. Los dos enlaces de navegación del módulo de Facturas ("Ver facturas", "Subir facturas") solo aparecen a la derecha **cuando se está dentro de ese módulo** (Panel, Subir, Detalle) — en la portada de Inicio no se muestran, porque pertenecen a un módulo concreto, no a la navegación general entre módulos. El enlace activo se resalta visualmente.
 - Todas las pantallas menos "Inicio" y "Subir facturas" (en su versión GET) requieren autenticación mediante el diálogo nativo de usuario/contraseña del navegador.
 
 ---
