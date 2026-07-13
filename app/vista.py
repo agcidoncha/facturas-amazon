@@ -147,6 +147,7 @@ def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Dep
     <div class="acciones">
       <a class="boton" href="/subir">Subir facturas</a>
       <a class="enlace-secundario" href="/facturas/exportar.xlsx">Exportar a Excel</a>
+      <a class="enlace-secundario" href="/facturas/reprocesar-todas">Reprocesar todas</a>
     </div>
     <div class="tabla-envoltura">
     <table>
@@ -190,6 +191,14 @@ def exportar_excel(_: None = Depends(_verificar_credenciales), db: Session = Dep
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=facturas_amazon.xlsx"},
     )
+
+
+@router.get("/facturas/reprocesar-todas")
+def reprocesar_todas(_: None = Depends(_verificar_credenciales), db: Session = Depends(get_db)):
+    documentos = db.query(models.Documento).all()
+    for documento in documentos:
+        reprocesar_documento(db, documento)
+    return RedirectResponse(url="/facturas", status_code=303)
 
 
 @router.get("/facturas/{documento_id}", response_class=HTMLResponse)
