@@ -21,7 +21,10 @@ security = HTTPBasic()
 
 APP_TOKEN = os.environ.get("APP_TOKEN")
 
-CAMPOS_VISTA = ["fecha_documento", "numero_documento", "base_imponible", "iva", "importe_total"]
+CAMPOS_VISTA = [
+    "fecha_documento", "fecha_documento_normalizada", "numero_documento",
+    "base_imponible", "iva", "importe_total",
+]
 
 COLUMNAS = [
     "Fecha de factura", "Emisor", "Tipo de gasto", "Número de factura",
@@ -95,7 +98,7 @@ def _obtener_filas(db: Session) -> list[dict]:
         filas.append({
             "documento_id": doc.id,
             "tiene_datos": doc.id in ids_con_datos,
-            "fecha_documento": v.get("fecha_documento"),
+            "fecha_documento": v.get("fecha_documento_normalizada") or v.get("fecha_documento"),
             "emisor": doc.emisor,
             "tipo_gasto": doc.tipo_gasto,
             "numero_documento": v.get("numero_documento"),

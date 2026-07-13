@@ -142,6 +142,21 @@ def try_patterns(text, patterns):
     return None, None
 
 
+def normalizar_fecha(fecha_cruda):
+    """Convierte una fecha con separador '/' o '-' (tal como la escriba
+    Amazon según el idioma del documento) a un formato único AAAA-MM-DD,
+    sin sustituir el valor crudo (sección 7.4: se guarda aparte)."""
+    if not fecha_cruda:
+        return None
+    partes = re.split(r"[/\-]", fecha_cruda.strip())
+    if len(partes) != 3:
+        return None
+    dia, mes, anio = partes
+    if not (dia.isdigit() and mes.isdigit() and anio.isdigit() and len(anio) == 4):
+        return None
+    return f"{anio}-{mes.zfill(2)}-{dia.zfill(2)}"
+
+
 def extract_common_fields(text):
     fields = []
     for field_name, patterns in COMMON_FIELD_PATTERNS.items():
@@ -152,6 +167,14 @@ def extract_common_fields(text):
                 origin=f"etiqueta detectada ({lang})",
                 confidence=0.95,
             ))
+            if field_name == "fecha_documento":
+                normalizada = normalizar_fecha(value)
+                if normalizada:
+                    fields.append(make_field(
+                        "fecha_documento_normalizada", normalizada,
+                        origin="normalizado desde fecha_documento",
+                        confidence=0.95,
+                    ))
         else:
             fields.append(make_field(
                 field_name, None, origin="no encontrado",
@@ -366,10 +389,19 @@ def process_invoice(path: Path) -> dict:
     # (más legible), pero el dato crudo siempre queda disponible en "campos".
     tipo_gasto = determine_tipo_gasto(issuer, doc_type, eu_sarl_concepto_norm or eu_sarl_concepto)
 
-    # Nivel de confianza global: si algún campo clave falta, marcar revisión
-    campos_criticos = ["numero_documento", "fecha_documento"]
+    # Nivel de confianza global: si algún campo clave falta, marcar revisión.
+    # No se comprueban TODOS los campos (ej. "moneda" o "periodo" no aparecen
+    # nunca en las facturas simples de Amazon EU SARL, y contarlos dejaría
+    # esas facturas marcadas como "necesita revisión" permanentemente, sin
+    # aportar ninguna señal útil). Solo los campos realmente imprescindibles
+    # para la contabilidad: número, fecha e importe total. Si alguno de ellos
+    # ni siquiera aparece en "campos" (algunos extractores solo añaden el
+    # campo cuando lo encuentran), también cuenta como pendiente de revisión.
+    campos_criticos = ["numero_documento", "fecha_documento", "importe_total"]
+    campos_por_nombre = {f["campo"]: f for f in fields}
     necesita_revision_global = any(
-        f["necesita_revision"] for f in fields if f["campo"] in campos_criticos
+        campos_por_nombre[c]["necesita_revision"] if c in campos_por_nombre else True
+        for c in campos_criticos
     )
 
     return {
