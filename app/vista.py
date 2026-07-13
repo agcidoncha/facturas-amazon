@@ -233,6 +233,9 @@ def detalle_factura(
     contenido = f"""
     <p><a class="enlace-secundario" href="/facturas">← Volver a la lista</a></p>
     <h1>{html.escape(documento.archivo_origen)}</h1>
+    <div class="acciones">
+      <a class="enlace-secundario" href="/facturas/{documento_id}/exportar.xlsx">Exportar esta factura a Excel</a>
+    </div>
     <div class="tarjeta">
       <dl class="ficha">
         <dt>Emisor</dt><dd>{html.escape(documento.emisor)}</dd>
@@ -253,6 +256,48 @@ def detalle_factura(
     </div>
     """
     return pagina(f"Factura {documento.archivo_origen}", contenido, activo="facturas")
+
+
+@router.get("/facturas/{documento_id}/exportar.xlsx")
+def exportar_una_factura(
+    documento_id: int,
+    _: None = Depends(_verificar_credenciales),
+    db: Session = Depends(get_db),
+):
+    documento = db.query(models.Documento).get(documento_id)
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    campos = (
+        db.query(models.DatoExtraido)
+        .filter_by(documento_id=documento_id)
+        .order_by(models.DatoExtraido.id)
+        .all()
+    )
+
+    libro = Workbook()
+    hoja = libro.active
+    hoja.title = "Factura"
+    hoja.append(["Campo", "Valor"])
+    hoja.append(["archivo_origen", documento.archivo_origen])
+    hoja.append(["emisor", documento.emisor])
+    hoja.append(["tipo_documento", documento.tipo_documento])
+    hoja.append(["tipo_gasto", documento.tipo_gasto])
+    hoja.append(["estado", documento.estado])
+    hoja.append(["subido", documento.fecha_carga.strftime("%Y-%m-%d %H:%M")])
+    for c in campos:
+        hoja.append([c.campo, _formatear_valor(c.valor)])
+
+    buffer = io.BytesIO()
+    libro.save(buffer)
+    buffer.seek(0)
+
+    nombre_archivo = f"factura_{documento_id}_{documento.archivo_origen.rsplit('.', 1)[0]}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={nombre_archivo}"},
+    )
 
 
 @router.get("/facturas/{documento_id}/reprocesar")
