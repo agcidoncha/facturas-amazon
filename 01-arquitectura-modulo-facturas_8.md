@@ -85,6 +85,8 @@ Separar **"traer y guardar todo"** (módulos 3.1–3.3) de **"decidir qué mirar
 | 2026-07-11 | Vista por defecto: fecha, emisor, tipo de gasto, nº factura, base, IVA, total, estado | Usuario |
 | 2026-07-13 | Presupuesto de hosting: hasta 10 €/mes, priorizando simplicidad y fiabilidad sobre ahorro | Usuario |
 | 2026-07-13 | Backend: Python + FastAPI | Claude (delegado) |
+| 2026-07-13 | Infraestructura desplegada: Render (Web Service + Disco + Cron Job) + Neon Postgres (Frankfurt), verificada en producción | Usuario + Claude |
+| 2026-07-13 | Amazon aprueba el registro de desarrollador — Módulo de Conexión (3.1) ya no está bloqueado | Amazon |
 | 2026-07-13 | Hosting revisado: Render de pago (Web Starter + Disco persistente + Cron Job, ~9 $/mes) + Neon Postgres gratis como único servicio externo | Usuario + Claude |
 
 ---
@@ -184,12 +186,12 @@ Se descartó el plan gratuito de *cómputo* de Render para el Web Service porque
 1. ~~Elegir un hosting en la nube adecuado para la aplicación~~ → Hecho: Render (workspace Hobby + cómputo de pago, ver arriba) + Neon (Postgres).
 2. Crear un subdominio en el panel del hosting actual de la empresa (ej. `facturas.melopido.shop`). → **Hecho: subdominio `facturas.melopido.shop` creado, con certificado SSL Let's Encrypt (HTTPS activo).**
 3. Configurar el DNS de ese subdominio para que apunte al nuevo hosting de la aplicación (Render).
-4. Registrar una aplicación de tipo desarrollador en Amazon Seller Central, para la conexión oficial (trámite en la web de Amazon, no programación). → **Hecho (13/07/2026): perfil de desarrollador privado enviado, con el caso de uso "Finanzas y contabilidad". Estado: en revisión por Amazon.**
+4. Registrar una aplicación de tipo desarrollador en Amazon Seller Central, para la conexión oficial (trámite en la web de Amazon, no programación). → **Hecho: perfil de desarrollador privado enviado (13/07/2026), aprobado por Amazon (13/07/2026).** Ya no hay ningún bloqueante externo pendiente para empezar a programar el Módulo de Conexión (3.1).
 5. Prueba de conexión antes de construir el resto del sistema.
 6. Repositorio de código creado y con el primer commit → **Hecho: https://github.com/agcidoncha/facturas-amazon (rama `main`), con `render.yaml` (Web Service + Disco + Cron Job) y un esqueleto FastAPI probado localmente.**
-7. Crear el Blueprint en Render desde ese repositorio (Web Service + Disco + Cron Job) y el proyecto Postgres en Neon — pendiente, requiere que el usuario añada un método de pago en Render y cree la cuenta en Neon.
+7. Crear el Blueprint en Render desde ese repositorio (Web Service + Disco + Cron Job) y el proyecto Postgres en Neon. → **Hecho (13/07/2026): Web Service, Disco (5GB) y Cron Job desplegados y verificados (`/health` responde `{"status":"ok"}`); Postgres en Neon (región Frankfurt) conectado vía `DATABASE_URL`.**
 
-Los pasos 1-6 no implican programar. El paso 7 en adelante sí empieza a construir el sistema real.
+Los pasos 1-7 no implican programar la lógica de negocio todavía (solo infraestructura). Con Amazon aprobado y la infraestructura desplegada, el siguiente trabajo es programar de verdad: el Módulo de Conexión (3.1), el modelo de datos en Postgres, y la vista básica.
 
 ## 11.1 Diseño técnico del backend (acordado 2026-07-13)
 
@@ -204,5 +206,11 @@ Los pasos 1-6 no implican programar. El paso 7 en adelante sí empieza a constru
 
 ## 12. Siguiente paso más pequeño propuesto
 
-Con la cuenta de Render creada, el subdominio con SSL listo, el registro de desarrollador de Amazon en revisión, y el diseño técnico del backend ya decidido (sección 11.1: Python/FastAPI + Render de pago + Neon), el siguiente paso pendiente es crear el Web Service, el Disco y el Cron Job en Render, y la base de datos en Neon, y empezar a programar el MVP — sin esperar a la aprobación de Amazon para el módulo de Extracción (3.3) y el modelo de datos, que no dependen de la conexión oficial. La aprobación de Amazon solo bloquea el Módulo de Conexión (3.1).
+Con la infraestructura desplegada (Render + Neon, verificada en producción) y el registro de desarrollador de Amazon ya aprobado, no queda ningún bloqueante externo. El siguiente paso es programar el MVP en este orden:
+1. Modelo de datos real en Postgres (`documentos`, `datos_extraidos`, `relaciones_documentos`, sección 11.1).
+2. Módulo de Conexión (3.1): autenticación con la SP-API de Amazon y descarga de facturas, ahora ya posible al estar aprobado el registro de desarrollador.
+3. Integrar el prototipo de extracción (`extract_invoices.py`) con la base de datos, para que los datos extraídos se guarden en vez de solo generar un JSON suelto.
+4. Vista básica en pantalla con las columnas por defecto (sección 7.7).
+
+Pendiente, no bloqueante: configurar el DNS de `facturas.melopido.shop` hacia Render (paso 3, sección 11).
 
