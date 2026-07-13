@@ -52,6 +52,7 @@
 - No hay un "molde" rígido de columnas: si una factura de publicidad trae campos distintos a una de logística, ambas conviven sin conflicto.
 - Si en el futuro aparece un campo que nunca se había visto, el sistema simplemente añade esa nueva pieza de información sin necesitar rediseñar la base de datos ni tocar las facturas ya procesadas.
 - El emisor (Amazon EU SARL, Amazon Online Spain, u otro) se guarda como un dato más, permitiendo tratarlos como fuentes distintas cuando haga falta.
+- **Implementado y verificado en producción (13/07/2026):** `app/extraccion.py` conecta `process_invoice()` (prototipo `extract_invoices.py`) con la base de datos. Al subir un PDF se guardan todos los campos extraídos, el `tipo_gasto` y el `estado` real (revisado / necesita revisión), y se resuelven las relaciones nota de crédito → factura original. Probado con una factura y una nota de crédito sintéticas contra Postgres real: detección correcta, campos guardados, relación resuelta.
 
 ### 3.4 Módulo de Consulta y Vistas
 - Aquí es donde se decide, en cada momento, qué mirar: 1 dato, 10 datos, filtrado por fecha, por emisor, por concepto, etc.
