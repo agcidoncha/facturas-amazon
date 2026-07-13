@@ -193,7 +193,7 @@ Se descartó el plan gratuito de *cómputo* de Render para el Web Service porque
 **Pasos acordados, en orden:**
 1. ~~Elegir un hosting en la nube adecuado para la aplicación~~ → Hecho: Render (workspace Hobby + cómputo de pago, ver arriba) + Neon (Postgres).
 2. Crear un subdominio en el panel del hosting actual de la empresa (ej. `facturas.melopido.shop`). → **Hecho: subdominio `facturas.melopido.shop` creado, con certificado SSL Let's Encrypt (HTTPS activo).**
-3. Configurar el DNS de ese subdominio para que apunte al nuevo hosting de la aplicación (Render).
+3. Configurar el DNS de ese subdominio para que apunte al nuevo hosting de la aplicación (Render). → **Hecho y verificado (13/07/2026):** registro CNAME `facturas` → `facturas-amazon-web.onrender.com` creado (sustituyendo el registro A anterior), dominio verificado en Render, certificado SSL emitido automáticamente. `https://facturas.melopido.shop/facturas` funciona igual que la URL de Render.
 4. Registrar una aplicación de tipo desarrollador en Amazon Seller Central, para la conexión oficial (trámite en la web de Amazon, no programación). → **Hecho: perfil de desarrollador privado enviado (13/07/2026), aprobado por Amazon (13/07/2026).** Ya no hay ningún bloqueante externo pendiente para empezar a programar el Módulo de Conexión (3.1).
 5. Prueba de conexión antes de construir el resto del sistema.
 6. Repositorio de código creado y con el primer commit → **Hecho: https://github.com/agcidoncha/facturas-amazon (rama `main`), con `render.yaml` (Web Service + Disco + Cron Job) y un esqueleto FastAPI probado localmente.**
