@@ -1,25 +1,20 @@
 import html
 import io
-import os
 import re
-import secrets
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from openpyxl import Workbook
 from sqlalchemy.orm import Session
 
 from app import models
+from app.auth import verificar_credenciales
 from app.db import get_db
 from app.extraccion import reprocesar_documento
 from app.plantillas import pagina
 
 router = APIRouter()
-security = HTTPBasic()
-
-APP_TOKEN = os.environ.get("APP_TOKEN")
 
 CAMPOS_VISTA = [
     "fecha_documento", "fecha_documento_normalizada", "numero_documento",
@@ -34,15 +29,6 @@ COLUMNAS = [
 ETIQUETAS_COLUMNAS = [
     "Fecha", "Emisor", "Tipo de gasto", "Nº factura", "Base", "IVA", "Total", "Estado", "",
 ]
-
-
-def _verificar_credenciales(credentials: HTTPBasicCredentials = Depends(security)):
-    if not APP_TOKEN or not secrets.compare_digest(credentials.password, APP_TOKEN):
-        raise HTTPException(
-            status_code=401,
-            detail="No autorizado",
-            headers={"WWW-Authenticate": "Basic"},
-        )
 
 
 def _a_numero(valor):
@@ -111,7 +97,7 @@ def _obtener_filas(db: Session) -> list[dict]:
 
 
 @router.get("/facturas", response_class=HTMLResponse)
-def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Depends(get_db)):
+def vista_facturas(_: None = Depends(verificar_credenciales), db: Session = Depends(get_db)):
     filas = _obtener_filas(db)
 
     def celda(etiqueta, valor):
@@ -162,7 +148,7 @@ def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Dep
 
 
 @router.get("/facturas/exportar.xlsx")
-def exportar_excel(_: None = Depends(_verificar_credenciales), db: Session = Depends(get_db)):
+def exportar_excel(_: None = Depends(verificar_credenciales), db: Session = Depends(get_db)):
     filas = _obtener_filas(db)
 
     libro = Workbook()
@@ -194,7 +180,7 @@ def exportar_excel(_: None = Depends(_verificar_credenciales), db: Session = Dep
 
 
 @router.get("/facturas/reprocesar-todas")
-def reprocesar_todas(_: None = Depends(_verificar_credenciales), db: Session = Depends(get_db)):
+def reprocesar_todas(_: None = Depends(verificar_credenciales), db: Session = Depends(get_db)):
     documentos = db.query(models.Documento).all()
     for documento in documentos:
         reprocesar_documento(db, documento)
@@ -204,7 +190,7 @@ def reprocesar_todas(_: None = Depends(_verificar_credenciales), db: Session = D
 @router.get("/facturas/{documento_id}", response_class=HTMLResponse)
 def detalle_factura(
     documento_id: int,
-    _: None = Depends(_verificar_credenciales),
+    _: None = Depends(verificar_credenciales),
     db: Session = Depends(get_db),
 ):
     documento = db.query(models.Documento).get(documento_id)
@@ -261,7 +247,7 @@ def detalle_factura(
 @router.get("/facturas/{documento_id}/exportar.xlsx")
 def exportar_una_factura(
     documento_id: int,
-    _: None = Depends(_verificar_credenciales),
+    _: None = Depends(verificar_credenciales),
     db: Session = Depends(get_db),
 ):
     documento = db.query(models.Documento).get(documento_id)
@@ -303,7 +289,7 @@ def exportar_una_factura(
 @router.get("/facturas/{documento_id}/reprocesar")
 def reprocesar(
     documento_id: int,
-    _: None = Depends(_verificar_credenciales),
+    _: None = Depends(verificar_credenciales),
     db: Session = Depends(get_db),
 ):
     documento = db.query(models.Documento).get(documento_id)

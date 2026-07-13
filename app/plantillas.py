@@ -12,13 +12,13 @@ def pagina(titulo: str, contenido: str, activo: str = "") -> str:
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{titulo} · Facturas Amazon</title>
+<title>{titulo} · Melopido</title>
 <link rel="stylesheet" href="/static/estilo.css">
 </head>
 <body>
 <header class="cabecera">
   <div class="contenedor">
-    <a class="titulo-app" href="/facturas">Facturas Amazon</a>
+    <a class="titulo-app" href="/">Melopido</a>
     <nav class="nav-principal">
       <a href="/facturas"{marca("facturas")}>Ver facturas</a>
       <a href="/subir"{marca("subir")}>Subir facturas</a>

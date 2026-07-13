@@ -101,6 +101,41 @@ p.subtitulo {
   margin-bottom: var(--espacio);
 }
 
+/* Página de inicio: una tarjeta por módulo */
+.rejilla-modulos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--espacio);
+}
+
+.tarjeta-modulo {
+  display: block;
+  background: var(--color-superficie);
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio);
+  padding: var(--espacio);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tarjeta-modulo:hover {
+  border-color: var(--color-primario);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.12);
+}
+
+.tarjeta-modulo h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  color: var(--color-primario);
+}
+
+.tarjeta-modulo p {
+  margin: 0;
+  color: var(--color-texto-suave);
+  font-size: 0.92rem;
+}
+
 /* Formularios */
 label {
   display: block;
