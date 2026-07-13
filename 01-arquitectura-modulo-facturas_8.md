@@ -164,7 +164,9 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 3. Extracción flexible de datos (sin esquema fijo, con origen/confianza/revisión por dato). **Hecho y verificado (13/07/2026).**
 4. Vista básica en pantalla con las columnas por defecto acordadas (sección 7.7). **Hecho y verificado (13/07/2026).**
 
-**MVP funcional completo.** Pendiente solo la fase visual (CSS/estética), deliberadamente pospuesta.
+**MVP funcional completo.**
+
+**Fase visual — primera versión (13/07/2026):** estilo coherente en `app/static/estilo.css` (variables CSS centralizadas, fácil de ajustar) y plantilla compartida (`app/plantillas.py`) para que todas las pantallas se vean iguales. Responsive: en móvil en vertical (≤640px), la tabla de facturas se convierte en tarjetas apiladas en vez de forzar scroll horizontal. Deliberadamente sencillo por ahora — pendiente la opinión de la persona que gestionará las facturas en el día a día antes de refinar más.
 
 **Justo después del MVP (segunda iteración inmediata, no una fase lejana):**
 5. Exportación a Excel. → **Hecho y verificado (13/07/2026):** `/facturas/exportar.xlsx`, mismas 8 columnas, importes como números reales (no texto) para poder sumarlos en Excel.
