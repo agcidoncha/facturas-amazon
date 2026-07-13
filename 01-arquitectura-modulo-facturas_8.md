@@ -134,6 +134,8 @@ Columnas que se mostrarán por defecto en el panel principal de facturas (sin ne
 
 Cualquier otro dato disponible (desglose por campaña, detalle de ajustes, jurisdicciones de tarifas regulatorias, etc.) queda accesible a través del módulo de Consulta y Vistas (sección 3.4), sin estar en la vista por defecto.
 
+**Implementado y verificado en producción (13/07/2026):** tabla en `/facturas` (`app/vista.py`) con estas 8 columnas, protegida con autenticación básica HTTP (usuario cualquiera, contraseña = `APP_TOKEN`). Sin estilos todavía (fase visual pendiente, deliberadamente pospuesta a petición del usuario). Probado localmente contra Postgres real, incluyendo una prueba de inyección HTML para confirmar que los valores se escapan correctamente.
+
 ### 7.8 Tratamiento del "tipo de gasto" / concepto
 
 Se decide **no** usar una lista cerrada de categorías predefinidas. El sistema guardará el concepto tal como aparece en cada factura (ya sea texto legible como "Tarifas de logística de Amazon" o un código interno como `ais_fulfillment_by_amazon_fees_text`), y el usuario decidirá más adelante cómo agruparlos en categorías propias. Esto es coherente con el principio de extracción flexible (condición 2, sección 2) y evita que una categorización rígida quede obsoleta si Amazon introduce nuevos tipos de cargo.
@@ -155,10 +157,12 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 ## 9. MVP (primera versión mínima) — alcance acordado
 
 **Incluido en el MVP:**
-1. Descarga automática mensual (desde el día 7) + descarga manual bajo demanda, desde Seller Central.
-2. Almacenamiento organizado de los PDF originales (fuente de verdad) con detección de duplicados.
-3. Extracción flexible de datos (sin esquema fijo, con origen/confianza/revisión por dato).
-4. Vista básica en pantalla con las columnas por defecto acordadas (sección 7.7).
+1. ~~Descarga automática mensual (desde el día 7) + descarga manual bajo demanda, desde Seller Central.~~ → **Revisado:** descarga manual (Amazon no lo permite por API, sección 3.1) + carga manual a la aplicación. **Hecho y verificado (13/07/2026).**
+2. Almacenamiento organizado de los PDF originales (fuente de verdad) con detección de duplicados. **Hecho y verificado (13/07/2026).**
+3. Extracción flexible de datos (sin esquema fijo, con origen/confianza/revisión por dato). **Hecho y verificado (13/07/2026).**
+4. Vista básica en pantalla con las columnas por defecto acordadas (sección 7.7). **Hecho y verificado (13/07/2026).**
+
+**MVP funcional completo.** Pendiente solo la fase visual (CSS/estética), deliberadamente pospuesta.
 
 **Justo después del MVP (segunda iteración inmediata, no una fase lejana):**
 5. Exportación a Excel.
