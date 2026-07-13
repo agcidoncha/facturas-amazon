@@ -92,6 +92,10 @@ Separar **"traer y guardar todo"** (módulos 3.1–3.3) de **"decidir qué mirar
 | 2026-07-13 | Amazon aprueba el registro de desarrollador — Módulo de Conexión (3.1) ya no está bloqueado | Amazon |
 | 2026-07-13 | Verificado: la SP-API no permite descargar los PDF de facturas de Amazon al vendedor. El Módulo de Conexión (3.1) pasa a ser Módulo de Carga manual; se descarta el scraping de Seller Central | Claude (investigación) + Usuario |
 | 2026-07-13 | Hosting revisado: Render de pago (Web Starter + Disco persistente + Cron Job, ~9 $/mes) + Neon Postgres gratis como único servicio externo | Usuario + Claude |
+| 2026-07-13 | DNS de `facturas.melopido.shop` apuntando a Render, SSL verificado | Usuario + Claude |
+| 2026-07-13 | Ajuste del criterio de "necesita revisión": solo número, fecha e importe total (no todos los campos) | Claude (a petición del usuario) |
+| 2026-07-13 | Capa visual coherente (desktop/tablet/móvil vertical), pospuesta a la opinión de quien gestione las facturas en el día a día | Usuario + Claude |
+| 2026-07-13 | Página de inicio con tarjetas de módulo, preparada para futuros módulos más allá de facturas | Usuario |
 
 ---
 
@@ -146,6 +150,10 @@ Se decide **no** usar una lista cerrada de categorías predefinidas. El sistema 
 
 El sistema marcará automáticamente una factura como **"revisado"** cuando todos sus datos extraídos tengan alta confianza y ninguno esté señalado como pendiente de revisión manual (ver condición 3, sección 2). Si algún dato tiene baja confianza o necesita revisión, la factura queda marcada como **"necesita revisión"** hasta que el usuario la confirme manualmente. Esto evita que haya que revisar las ~10 facturas del mes una a una, concentrando la atención solo en las dudosas.
 
+**Ajuste (13/07/2026):** en la práctica, no se comprueban *todos* los campos — algunos (ej. "moneda" o "período") no aparecen nunca en las facturas simples de Amazon EU SARL, y contarlos dejaría esas facturas marcadas como "necesita revisión" de forma permanente y sin utilidad real. Se comprueban solo los campos imprescindibles para la contabilidad: **número de documento, fecha e importe total**. Si alguno de ellos ni siquiera se pudo extraer, también cuenta como pendiente de revisión.
+
+**Normalización de fecha (13/07/2026):** Amazon no usa siempre el mismo separador de fecha según el idioma del documento (`28/02/2026` vs `02-01-2026`). Se guarda el valor crudo tal cual (sección 7.4) y, además, un campo derivado `fecha_documento_normalizada` en formato único AAAA-MM-DD, que es el que se muestra en la vista por defecto para que todas las fechas se lean de forma consistente.
+
 ### 7.10 Tratamiento de las notas de crédito en el panel
 
 Las notas de crédito se mostrarán como una **fila independiente con su propio importe negativo**, no fusionadas ni ajustando automáticamente el total de la factura original. La relación con la(s) factura(s) original(es) (ver sección 7.1) se conserva como un enlace/referencia entre documentos, visible al consultar el detalle, pero sin alterar los importes ya registrados de la factura original.
@@ -170,6 +178,12 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 
 **Justo después del MVP (segunda iteración inmediata, no una fase lejana):**
 5. Exportación a Excel. → **Hecho y verificado (13/07/2026):** `/facturas/exportar.xlsx`, mismas 8 columnas, importes como números reales (no texto) para poder sumarlos en Excel.
+
+**Ampliaciones sobre el MVP (13/07/2026):**
+- **Página de detalle por factura** (`/facturas/{id}`): todos los campos extraídos, no solo las 8 columnas (sección 7.7, ampliación).
+- **Exportación a Excel individual** (`/facturas/{id}/exportar.xlsx`): descarga solo esa factura con todos sus campos, complementando la exportación general.
+- **"Reprocesar" y "Reprocesar todas"**: vuelven a ejecutar el Módulo de Extracción sobre un PDF ya guardado (uno o todos), sin tener que volver a subirlo. Útil tanto para documentos subidos antes de tener la extracción completa, como para aplicar mejoras futuras del extractor a facturas ya cargadas.
+- **Página de inicio con tarjetas de módulo** (`/`): pensada para cuando la aplicación crezca con módulos más allá de facturas (sección 4, "preparado para crecer"). Hoy solo hay una tarjeta ("Gestión de Facturas"); añadir un módulo nuevo no debería exigir tocar los ya existentes.
 
 **Explícitamente fuera del MVP** (se decidirá más adelante, no ahora):
 - Consultas avanzadas personalizadas (más allá de la vista por defecto).
