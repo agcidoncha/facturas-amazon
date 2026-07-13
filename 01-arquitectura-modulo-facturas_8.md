@@ -165,7 +165,7 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 **MVP funcional completo.** Pendiente solo la fase visual (CSS/estética), deliberadamente pospuesta.
 
 **Justo después del MVP (segunda iteración inmediata, no una fase lejana):**
-5. Exportación a Excel.
+5. Exportación a Excel. → **Hecho y verificado (13/07/2026):** `/facturas/exportar.xlsx`, mismas 8 columnas, importes como números reales (no texto) para poder sumarlos en Excel.
 
 **Explícitamente fuera del MVP** (se decidirá más adelante, no ahora):
 - Consultas avanzadas personalizadas (más allá de la vista por defecto).
