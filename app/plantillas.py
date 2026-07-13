@@ -1,3 +1,10 @@
+# Páginas que pertenecen al módulo de Facturas. Solo dentro de estas se
+# muestra la navegación propia del módulo ("Ver facturas" / "Subir
+# facturas") — en la portada (o en un futuro módulo distinto) no tiene
+# sentido ver los enlaces de un módulo que no es el que se está viendo.
+PAGINAS_MODULO_FACTURAS = {"facturas", "subir"}
+
+
 def pagina(titulo: str, contenido: str, activo: str = "") -> str:
     """Envuelve el contenido de cada pantalla con la misma cabecera y
     navegación, para que todas las páginas se vean coherentes (desktop,
@@ -6,6 +13,14 @@ def pagina(titulo: str, contenido: str, activo: str = "") -> str:
 
     def marca(nombre: str) -> str:
         return ' aria-current="page"' if nombre == activo else ""
+
+    nav = ""
+    if activo in PAGINAS_MODULO_FACTURAS:
+        nav = f"""
+    <nav class="nav-principal">
+      <a href="/facturas"{marca("facturas")}>Ver facturas</a>
+      <a href="/subir"{marca("subir")}>Subir facturas</a>
+    </nav>"""
 
     return f"""<!doctype html>
 <html lang="es">
@@ -18,11 +33,7 @@ def pagina(titulo: str, contenido: str, activo: str = "") -> str:
 <body>
 <header class="cabecera">
   <div class="contenedor">
-    <a class="titulo-app" href="/">Melopido</a>
-    <nav class="nav-principal">
-      <a href="/facturas"{marca("facturas")}>Ver facturas</a>
-      <a href="/subir"{marca("subir")}>Subir facturas</a>
-    </nav>
+    <a class="titulo-app" href="/">Melopido</a>{nav}
   </div>
 </header>
 <main class="contenedor">
