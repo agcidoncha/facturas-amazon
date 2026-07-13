@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.db import get_db
 from app.extraccion import reprocesar_documento
+from app.plantillas import pagina
 
 router = APIRouter()
 security = HTTPBasic()
@@ -25,6 +26,10 @@ CAMPOS_VISTA = ["fecha_documento", "numero_documento", "base_imponible", "iva", 
 COLUMNAS = [
     "Fecha de factura", "Emisor", "Tipo de gasto", "Número de factura",
     "Importe base", "IVA", "Importe total", "Estado",
+]
+
+ETIQUETAS_COLUMNAS = [
+    "Fecha", "Emisor", "Tipo de gasto", "Nº factura", "Base", "IVA", "Total", "Estado", "",
 ]
 
 
@@ -106,47 +111,50 @@ def _obtener_filas(db: Session) -> list[dict]:
 def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Depends(get_db)):
     filas = _obtener_filas(db)
 
-    def celda(valor):
-        return html.escape(str(valor)) if valor not in (None, "") else ""
+    def celda(etiqueta, valor):
+        texto = html.escape(str(valor)) if valor not in (None, "") else ""
+        return f'<td data-label="{etiqueta}">{texto}</td>'
 
     filas_html = []
     for f in filas:
-        acciones = [f'<a href="/facturas/{f["documento_id"]}">Ver</a>']
+        acciones = [f'<a class="enlace-secundario" href="/facturas/{f["documento_id"]}">Ver</a>']
         if not f["tiene_datos"]:
-            acciones.append(f'<a href="/facturas/{f["documento_id"]}/reprocesar">Reprocesar</a>')
+            acciones.append(
+                f'<a class="enlace-secundario" href="/facturas/{f["documento_id"]}/reprocesar">Reprocesar</a>'
+            )
         filas_html.append(
             "<tr>"
-            f"<td>{celda(f['fecha_documento'])}</td>"
-            f"<td>{celda(f['emisor'])}</td>"
-            f"<td>{celda(f['tipo_gasto'])}</td>"
-            f"<td>{celda(f['numero_documento'])}</td>"
-            f"<td>{celda(f['base_imponible'])}</td>"
-            f"<td>{celda(f['iva'])}</td>"
-            f"<td>{celda(f['importe_total'])}</td>"
-            f"<td>{celda(f['estado'])}</td>"
-            f"<td>{' · '.join(acciones)}</td>"
-            "</tr>"
+            + celda("Fecha", f["fecha_documento"])
+            + celda("Emisor", f["emisor"])
+            + celda("Tipo de gasto", f["tipo_gasto"])
+            + celda("Nº factura", f["numero_documento"])
+            + celda("Base", f["base_imponible"])
+            + celda("IVA", f["iva"])
+            + celda("Total", f["importe_total"])
+            + celda("Estado", f["estado"])
+            + f'<td data-label="">{" · ".join(acciones)}</td>'
+            + "</tr>"
         )
 
-    filas_render = "".join(filas_html) or "<tr><td colspan=\"9\">No hay facturas todavía</td></tr>"
+    filas_render = "".join(filas_html) or '<tr><td colspan="9">No hay facturas todavía</td></tr>'
+    cabecera_html = "".join(f"<th>{etq}</th>" for etq in ETIQUETAS_COLUMNAS)
 
-    return f"""
-    <!doctype html>
-    <html lang="es">
-    <head><meta charset="utf-8"><title>Facturas</title></head>
-    <body>
+    contenido = f"""
     <h1>Facturas</h1>
-    <p><a href="/subir">Subir facturas</a> · <a href="/facturas/exportar.xlsx">Exportar a Excel</a></p>
-    <table border="1" cellpadding="4">
-      <tr>
-        <th>Fecha</th><th>Emisor</th><th>Tipo de gasto</th><th>Nº factura</th>
-        <th>Base</th><th>IVA</th><th>Total</th><th>Estado</th><th></th>
-      </tr>
+    <div class="acciones">
+      <a class="boton" href="/subir">Subir facturas</a>
+      <a class="enlace-secundario" href="/facturas/exportar.xlsx">Exportar a Excel</a>
+    </div>
+    <div class="tabla-envoltura">
+    <table>
+      <thead><tr>{cabecera_html}</tr></thead>
+      <tbody>
       {filas_render}
+      </tbody>
     </table>
-    </body>
-    </html>
+    </div>
     """
+    return pagina("Facturas", contenido, activo="facturas")
 
 
 @router.get("/facturas/exportar.xlsx")
@@ -199,38 +207,40 @@ def detalle_factura(
     )
 
     filas_campos = "".join(
-        f"<tr><td>{html.escape(c.campo)}</td><td>{html.escape(_formatear_valor(c.valor))}</td></tr>"
+        f'<tr><td data-label="Campo">{html.escape(c.campo)}</td>'
+        f'<td data-label="Valor">{html.escape(_formatear_valor(c.valor))}</td></tr>'
         for c in campos
-    ) or "<tr><td colspan=\"2\">Sin datos extraídos todavía</td></tr>"
+    ) or '<tr><td colspan="2">Sin datos extraídos todavía</td></tr>'
 
     pendientes = [c for c in campos if c.necesita_revision]
     aviso = ""
     if pendientes:
         lista = "".join(f"<li>{html.escape(c.campo)}</li>" for c in pendientes)
-        aviso = f'<p>⚠ Necesita revisión:</p><ul>{lista}</ul>'
+        aviso = f'<div class="aviso">⚠ Necesita revisión:<ul>{lista}</ul></div>'
 
-    return f"""
-    <!doctype html>
-    <html lang="es">
-    <head><meta charset="utf-8"><title>Factura {html.escape(documento.archivo_origen)}</title></head>
-    <body>
-    <p><a href="/facturas">← Volver a la lista</a></p>
+    contenido = f"""
+    <p><a class="enlace-secundario" href="/facturas">← Volver a la lista</a></p>
     <h1>{html.escape(documento.archivo_origen)}</h1>
-    <p>
-      Emisor: {html.escape(documento.emisor)}<br>
-      Tipo de documento: {html.escape(documento.tipo_documento)}<br>
-      Tipo de gasto: {html.escape(documento.tipo_gasto or "(no encontrado)")}<br>
-      Estado: {html.escape(documento.estado)}<br>
-      Subido: {documento.fecha_carga.strftime("%Y-%m-%d %H:%M")}
-    </p>
+    <div class="tarjeta">
+      <dl class="ficha">
+        <dt>Emisor</dt><dd>{html.escape(documento.emisor)}</dd>
+        <dt>Tipo de documento</dt><dd>{html.escape(documento.tipo_documento)}</dd>
+        <dt>Tipo de gasto</dt><dd>{html.escape(documento.tipo_gasto or "(no encontrado)")}</dd>
+        <dt>Estado</dt><dd>{html.escape(documento.estado)}</dd>
+        <dt>Subido</dt><dd>{documento.fecha_carga.strftime("%Y-%m-%d %H:%M")}</dd>
+      </dl>
+    </div>
     {aviso}
-    <table border="1" cellpadding="4">
-      <tr><th>Campo</th><th>Valor</th></tr>
+    <div class="tabla-envoltura">
+    <table>
+      <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+      <tbody>
       {filas_campos}
+      </tbody>
     </table>
-    </body>
-    </html>
+    </div>
     """
+    return pagina(f"Factura {documento.archivo_origen}", contenido, activo="facturas")
 
 
 @router.get("/facturas/{documento_id}/reprocesar")

@@ -1,4 +1,5 @@
 import hashlib
+import html
 import os
 from pathlib import Path
 
@@ -9,32 +10,34 @@ from sqlalchemy.orm import Session
 from app import models
 from app.db import get_db
 from app.extraccion import procesar_y_guardar
+from app.plantillas import pagina
 
 router = APIRouter()
 
 APP_TOKEN = os.environ.get("APP_TOKEN")
 PDF_STORAGE_PATH = Path(os.environ.get("PDF_STORAGE_PATH", "/var/data/facturas"))
 
-FORMULARIO_HTML = """
-<!doctype html>
-<html lang="es">
-<head><meta charset="utf-8"><title>Subir facturas</title></head>
-<body>
-<h1>Subir facturas de Amazon</h1>
-<p>Selecciona los PDF descargados de la Biblioteca de Documentos Fiscales de Amazon.</p>
-<form method="post" enctype="multipart/form-data">
-  <p><label>Contraseña: <input type="password" name="token" required></label></p>
-  <p><input type="file" name="archivos" accept="application/pdf" multiple required></p>
-  <p><button type="submit">Subir</button></p>
-</form>
-</body>
-</html>
-"""
-
 
 @router.get("/subir", response_class=HTMLResponse)
 def formulario_subida():
-    return FORMULARIO_HTML
+    contenido = """
+    <h1>Subir facturas de Amazon</h1>
+    <p class="subtitulo">Selecciona los PDF descargados de la Biblioteca de Documentos Fiscales de Amazon.</p>
+    <div class="tarjeta">
+      <form method="post" enctype="multipart/form-data">
+        <div class="campo">
+          <label for="token">Contraseña</label>
+          <input type="password" id="token" name="token" required>
+        </div>
+        <div class="campo">
+          <label for="archivos">Archivos PDF</label>
+          <input type="file" id="archivos" name="archivos" accept="application/pdf" multiple required>
+        </div>
+        <button type="submit" class="boton">Subir</button>
+      </form>
+    </div>
+    """
+    return pagina("Subir facturas", contenido, activo="subir")
 
 
 @router.post("/subir", response_class=HTMLResponse)
@@ -73,20 +76,22 @@ def subir_documentos(
             f"{archivo.filename} ({documento.emisor} / {documento.tipo_documento} / {documento.estado})"
         )
 
-    filas = "".join(f"<li>{g}</li>" for g in guardados) or "<li>ninguno</li>"
-    filas_dup = "".join(f"<li>{d}</li>" for d in duplicados) or "<li>ninguno</li>"
-    filas_err = "".join(f"<li>{e}</li>" for e in errores) or "<li>ninguno</li>"
+    def lista(items):
+        if not items:
+            return '<ul class="lista-resultado"><li>ninguno</li></ul>'
+        filas = "".join(f"<li>{html.escape(item)}</li>" for item in items)
+        return f'<ul class="lista-resultado">{filas}</ul>'
 
-    return f"""
-    <!doctype html>
-    <html lang="es">
-    <head><meta charset="utf-8"><title>Resultado de la subida</title></head>
-    <body>
-    <h1>Resultado</h1>
-    <h2>Guardados ({len(guardados)})</h2><ul>{filas}</ul>
-    <h2>Duplicados, ya existían ({len(duplicados)})</h2><ul>{filas_dup}</ul>
-    <h2>Errores ({len(errores)})</h2><ul>{filas_err}</ul>
-    <p><a href="/subir">Subir más</a></p>
-    </body>
-    </html>
+    contenido_html = f"""
+    <h1>Resultado de la subida</h1>
+    <div class="tarjeta">
+      <h2>Guardados ({len(guardados)})</h2>
+      {lista(guardados)}
+      <h2>Duplicados, ya existían ({len(duplicados)})</h2>
+      {lista(duplicados)}
+      <h2>Errores ({len(errores)})</h2>
+      {lista(errores)}
+      <p><a class="enlace-secundario" href="/subir">Subir más</a></p>
+    </div>
     """
+    return pagina("Resultado de la subida", contenido_html, activo="subir")

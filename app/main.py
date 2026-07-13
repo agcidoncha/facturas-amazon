@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Facturas Amazon", lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(carga_router)
 app.include_router(vista_router)
 
