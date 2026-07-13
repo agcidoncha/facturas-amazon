@@ -27,10 +27,11 @@
 
 ## 3. Módulos propuestos
 
-### 3.1 Módulo de Conexión
-- Única responsabilidad: conectarse a Seller Central y obtener las facturas disponibles.
-- No interpreta ni transforma nada — solo trae el documento.
-- Se ejecuta automáticamente cada mes (desde el día 7) y también bajo demanda (botón manual).
+### 3.1 Módulo de Carga (antes "Módulo de Conexión") — revisado 2026-07-13
+- **Cambio de diseño importante:** se verificó que la SP-API oficial de Amazon no tiene ningún endpoint para descargar los PDF de las facturas que Amazon emite al vendedor (logística, publicidad, etc. — las de la Biblioteca de Documentos Fiscales). Existe una petición de funcionalidad de terceros pidiendo justo esto, abierta en 2021 y cerrada sin que Amazon la implementara. La única vía oficial (Finances API) da datos de las transacciones, no el documento PDF. Se descartó deliberadamente automatizar esto vía scraping/bot de Seller Central, por: riesgo de incumplir los términos de uso de Amazon, fragilidad ante cambios de la interfaz web, y la necesidad de almacenar credenciales de la cuenta de Amazon dentro del sistema.
+- **Diseño resultante:** el usuario sigue descargando manualmente los PDF desde la Biblioteca de Documentos Fiscales de Amazon (como hace hoy) y los **sube/arrastra** a la aplicación. A partir de ahí, todo el resto del sistema (3.2, 3.3, 3.4) funciona igual que estaba previsto, sin intervención manual.
+- No interpreta ni transforma nada — solo recibe el documento que el usuario sube.
+- El Cron Job de descarga automática mensual (día 7, ya desplegado en Render) se reconvierte en un simple **recordatorio** (aviso en el panel o notificación) de que toca subir las facturas del mes — ya no dispara ninguna descarga real.
 - No necesita saber nada de contabilidad, campos ni destino de los datos.
 
 ### 3.2 Almacén de Documentos Originales
@@ -87,6 +88,7 @@ Separar **"traer y guardar todo"** (módulos 3.1–3.3) de **"decidir qué mirar
 | 2026-07-13 | Backend: Python + FastAPI | Claude (delegado) |
 | 2026-07-13 | Infraestructura desplegada: Render (Web Service + Disco + Cron Job) + Neon Postgres (Frankfurt), verificada en producción | Usuario + Claude |
 | 2026-07-13 | Amazon aprueba el registro de desarrollador — Módulo de Conexión (3.1) ya no está bloqueado | Amazon |
+| 2026-07-13 | Verificado: la SP-API no permite descargar los PDF de facturas de Amazon al vendedor. El Módulo de Conexión (3.1) pasa a ser Módulo de Carga manual; se descarta el scraping de Seller Central | Claude (investigación) + Usuario |
 | 2026-07-13 | Hosting revisado: Render de pago (Web Starter + Disco persistente + Cron Job, ~9 $/mes) + Neon Postgres gratis como único servicio externo | Usuario + Claude |
 
 ---
@@ -206,11 +208,11 @@ Los pasos 1-7 no implican programar la lógica de negocio todavía (solo infraes
 
 ## 12. Siguiente paso más pequeño propuesto
 
-Con la infraestructura desplegada (Render + Neon, verificada en producción) y el registro de desarrollador de Amazon ya aprobado, no queda ningún bloqueante externo. El siguiente paso es programar el MVP en este orden:
+Con la infraestructura desplegada (Render + Neon, verificada en producción), el registro de desarrollador de Amazon aprobado, y confirmado que la descarga de PDF debe ser manual (sección 3.1), el siguiente paso es programar el MVP en este orden:
 1. Modelo de datos real en Postgres (`documentos`, `datos_extraidos`, `relaciones_documentos`, sección 11.1).
-2. Módulo de Conexión (3.1): autenticación con la SP-API de Amazon y descarga de facturas, ahora ya posible al estar aprobado el registro de desarrollador.
+2. Módulo de Carga (3.1): pantalla para subir/arrastrar los PDF descargados manualmente de Amazon.
 3. Integrar el prototipo de extracción (`extract_invoices.py`) con la base de datos, para que los datos extraídos se guarden en vez de solo generar un JSON suelto.
 4. Vista básica en pantalla con las columnas por defecto (sección 7.7).
 
-Pendiente, no bloqueante: configurar el DNS de `facturas.melopido.shop` hacia Render (paso 3, sección 11).
+Pendiente, no bloqueante: configurar el DNS de `facturas.melopido.shop` hacia Render (paso 3, sección 11); reconvertir el Cron Job existente en un recordatorio simple en vez de un disparador de descarga.
 
