@@ -5,3 +5,4 @@ pdfplumber
 sqlalchemy
 psycopg[binary]
 python-multipart
+openpyxl
