@@ -53,6 +53,22 @@ def _a_numero(valor):
         return None
 
 
+def _formatear_valor(valor):
+    if valor is None:
+        return "(no encontrado)"
+    if isinstance(valor, list):
+        partes = []
+        for item in valor:
+            if isinstance(item, dict):
+                partes.append(", ".join(f"{k}: {v}" for k, v in item.items()))
+            else:
+                partes.append(str(item))
+        return " | ".join(partes) if partes else "(vacío)"
+    if isinstance(valor, dict):
+        return ", ".join(f"{k}: {v}" for k, v in valor.items())
+    return str(valor)
+
+
 def _obtener_filas(db: Session) -> list[dict]:
     documentos = db.query(models.Documento).order_by(models.Documento.fecha_carga.desc()).all()
     ids = [d.id for d in documentos]
@@ -95,7 +111,9 @@ def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Dep
 
     filas_html = []
     for f in filas:
-        accion = "" if f["tiene_datos"] else f'<a href="/facturas/{f["documento_id"]}/reprocesar">Reprocesar</a>'
+        acciones = [f'<a href="/facturas/{f["documento_id"]}">Ver</a>']
+        if not f["tiene_datos"]:
+            acciones.append(f'<a href="/facturas/{f["documento_id"]}/reprocesar">Reprocesar</a>')
         filas_html.append(
             "<tr>"
             f"<td>{celda(f['fecha_documento'])}</td>"
@@ -106,7 +124,7 @@ def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Dep
             f"<td>{celda(f['iva'])}</td>"
             f"<td>{celda(f['importe_total'])}</td>"
             f"<td>{celda(f['estado'])}</td>"
-            f"<td>{accion}</td>"
+            f"<td>{' · '.join(acciones)}</td>"
             "</tr>"
         )
 
@@ -129,19 +147,6 @@ def vista_facturas(_: None = Depends(_verificar_credenciales), db: Session = Dep
     </body>
     </html>
     """
-
-
-@router.get("/facturas/{documento_id}/reprocesar")
-def reprocesar(
-    documento_id: int,
-    _: None = Depends(_verificar_credenciales),
-    db: Session = Depends(get_db),
-):
-    documento = db.query(models.Documento).get(documento_id)
-    if not documento:
-        raise HTTPException(status_code=404, detail="Documento no encontrado")
-    reprocesar_documento(db, documento)
-    return RedirectResponse(url="/facturas", status_code=303)
 
 
 @router.get("/facturas/exportar.xlsx")
@@ -174,3 +179,68 @@ def exportar_excel(_: None = Depends(_verificar_credenciales), db: Session = Dep
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=facturas_amazon.xlsx"},
     )
+
+
+@router.get("/facturas/{documento_id}", response_class=HTMLResponse)
+def detalle_factura(
+    documento_id: int,
+    _: None = Depends(_verificar_credenciales),
+    db: Session = Depends(get_db),
+):
+    documento = db.query(models.Documento).get(documento_id)
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    campos = (
+        db.query(models.DatoExtraido)
+        .filter_by(documento_id=documento_id)
+        .order_by(models.DatoExtraido.id)
+        .all()
+    )
+
+    filas_campos = "".join(
+        f"<tr><td>{html.escape(c.campo)}</td><td>{html.escape(_formatear_valor(c.valor))}</td></tr>"
+        for c in campos
+    ) or "<tr><td colspan=\"2\">Sin datos extraídos todavía</td></tr>"
+
+    pendientes = [c for c in campos if c.necesita_revision]
+    aviso = ""
+    if pendientes:
+        lista = "".join(f"<li>{html.escape(c.campo)}</li>" for c in pendientes)
+        aviso = f'<p>⚠ Necesita revisión:</p><ul>{lista}</ul>'
+
+    return f"""
+    <!doctype html>
+    <html lang="es">
+    <head><meta charset="utf-8"><title>Factura {html.escape(documento.archivo_origen)}</title></head>
+    <body>
+    <p><a href="/facturas">← Volver a la lista</a></p>
+    <h1>{html.escape(documento.archivo_origen)}</h1>
+    <p>
+      Emisor: {html.escape(documento.emisor)}<br>
+      Tipo de documento: {html.escape(documento.tipo_documento)}<br>
+      Tipo de gasto: {html.escape(documento.tipo_gasto or "(no encontrado)")}<br>
+      Estado: {html.escape(documento.estado)}<br>
+      Subido: {documento.fecha_carga.strftime("%Y-%m-%d %H:%M")}
+    </p>
+    {aviso}
+    <table border="1" cellpadding="4">
+      <tr><th>Campo</th><th>Valor</th></tr>
+      {filas_campos}
+    </table>
+    </body>
+    </html>
+    """
+
+
+@router.get("/facturas/{documento_id}/reprocesar")
+def reprocesar(
+    documento_id: int,
+    _: None = Depends(_verificar_credenciales),
+    db: Session = Depends(get_db),
+):
+    documento = db.query(models.Documento).get(documento_id)
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    reprocesar_documento(db, documento)
+    return RedirectResponse(url="/facturas", status_code=303)
