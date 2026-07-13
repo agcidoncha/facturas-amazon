@@ -203,6 +203,7 @@ Los pasos 1-7 no implican programar la lógica de negocio todavía (solo infraes
   - `datos_extraidos`: tabla flexible campo-valor (campo, valor, origen, confianza, necesita_revision, documento_id) — un campo nuevo no exige migrar nada (condición 4, sección 2).
   - `relaciones_documentos`: enlaza notas de crédito con su(s) factura(s) original(es) (secciones 7.1 y 7.10), sin fusionar importes.
   - Se eligió una tabla campo-valor sobre Postgres relacional en vez de una base NoSQL: cumple la condición de esquema flexible (sección 2, condición 2) sin perder las garantías relacionales que sí hacen falta para vincular documentos entre sí.
+- **Implementado y verificado en producción (13/07/2026):** modelos SQLAlchemy en `app/models.py`, conexión en `app/db.py` (driver psycopg3, corregido tras un fallo de despliegue por conflicto psycopg2/psycopg3), tablas creadas automáticamente al arrancar. Verificado con una petición real a `/health/db` contra la base de datos de Neon, confirmando las 3 tablas creadas.
 
 ---
 
