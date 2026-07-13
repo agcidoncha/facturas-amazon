@@ -168,25 +168,28 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 
 **Contexto:** el usuario cuenta con un hosting compartido tipo cPanel/Plesk para la web de la empresa (melopido.shop), no adecuado para alojar la aplicación (necesita procesos automáticos en segundo plano). Presupuesto ajustado; prioriza empezar gratis.
 
-**Hosting elegido para la aplicación (revisado 2026-07-13):** Render, **plan de pago**, para tener rendimiento y precio predecibles desde el principio (sin "despertar" tras inactividad, sin caducidad de bases de datos gratuitas). Decisión técnica delegada por el usuario en Claude, con presupuesto máximo de referencia de 10 €/mes y prioridad explícita en simplicidad y fiabilidad sobre ahorro. **Cuenta de Render ya creada ("Melopido").**
+**Hosting elegido para la aplicación (revisado 2026-07-13):** Render, con el **plan de workspace Hobby (gratis)** — no hace falta un workspace de pago: el límite de "1 puesto" de Hobby es sobre quién administra el panel de Render, no sobre los 2 usuarios administradores de la aplicación de facturas (eso lo gestiona la propia app). Lo que sí se paga es el **cómputo** de los servicios (Web Service y Cron Job) y el disco, con presupuesto máximo de referencia de 10 €/mes y prioridad explícita en simplicidad y fiabilidad sobre ahorro. **Cuenta de Render ya creada ("Melopido").**
 
-Se descartó el plan gratuito de Render porque no ofrece disco persistente (los PDF desaparecerían en cada redeploy) ni una base de datos Postgres duradera (la gratuita caduca a los 30 días). También se descartó consolidar todo en Railway: su facturación por consumo real hace que el coste de una app pequeña sea variable y, según casos reales, pueda oscilar entre 5 y 40 €/mes — no compatible con un presupuesto fijo de 10 €/mes.
+Se descartó el plan gratuito de *cómputo* de Render para el Web Service porque no admite disco persistente (los PDF desaparecerían en cada redeploy) ni una base de datos Postgres duradera (la gratuita caduca a los 30 días). También se descartó consolidar todo en Railway: su facturación por consumo real hace que el coste de una app pequeña sea variable y, según casos reales, pueda oscilar entre 5 y 40 €/mes — no compatible con un presupuesto fijo de 10 €/mes.
 
 **Arquitectura de hosting acordada:**
-- **Render — Web Service (plan Starter, ~7 $/mes):** aplicación FastAPI, interfaz web, botón de descarga manual, API. Siempre activo, sin cold start.
-- **Render — Disco persistente (~0,25 $/GB/mes, pocos GB):** Almacén de Documentos Originales (sección 3.2) — los PDF se guardan aquí, con huella/hash para deduplicación.
-- **Render — Cron Job (~1 $/mes mínimo):** dispara la descarga + extracción automática el día 7 de cada mes, reutilizando el mismo código que el botón manual.
+- **Render — Workspace Hobby:** 0 €/mes.
+- **Render — Web Service (cómputo Starter, ~7 $/mes):** aplicación FastAPI, interfaz web, botón de descarga manual, API. Siempre activo, sin cold start. Necesario para poder tener disco persistente.
+- **Render — Disco persistente (5 GB × 0,25 $/GB/mes ≈ 1,25 $/mes):** Almacén de Documentos Originales (sección 3.2) — los PDF se guardan aquí, con huella/hash para deduplicación.
+- **Render — Cron Job (cómputo Starter, ~0,00016 $/minuto, prorrateado por segundo):** dispara la descarga + extracción automática el día 7 de cada mes, reutilizando el mismo código que el botón manual. Coste real, dado que corre pocos minutos al mes, es prácticamente nulo (céntimos).
 - **Neon — Postgres (plan gratuito, externo a Render):** único servicio fuera de Render. Se eligió porque el Postgres gratuito de Render caduca a los 30 días y el de pago no aporta nada que Neon no dé gratis para este volumen de datos (0,5 GB, sin caducidad). Es el único punto de dependencia externa además de Render.
-- **Coste total estimado: ~9 $/mes (~9 €/mes)**, dentro del presupuesto de 10 €/mes, con precio fijo y predecible (no facturación por consumo variable).
+- **Coste total estimado: ~7,7-9 €/mes**, dentro del presupuesto de 10 €/mes, con precio previsible (solo varía ligeramente con el tamaño del disco y el ancho de banda real).
 
 **Pasos acordados, en orden:**
-1. ~~Elegir un hosting en la nube adecuado para la aplicación~~ → Hecho: Render (revisado a plan de pago, ver arriba) + Neon (Postgres).
+1. ~~Elegir un hosting en la nube adecuado para la aplicación~~ → Hecho: Render (workspace Hobby + cómputo de pago, ver arriba) + Neon (Postgres).
 2. Crear un subdominio en el panel del hosting actual de la empresa (ej. `facturas.melopido.shop`). → **Hecho: subdominio `facturas.melopido.shop` creado, con certificado SSL Let's Encrypt (HTTPS activo).**
 3. Configurar el DNS de ese subdominio para que apunte al nuevo hosting de la aplicación (Render).
 4. Registrar una aplicación de tipo desarrollador en Amazon Seller Central, para la conexión oficial (trámite en la web de Amazon, no programación). → **Hecho (13/07/2026): perfil de desarrollador privado enviado, con el caso de uso "Finanzas y contabilidad". Estado: en revisión por Amazon.**
 5. Prueba de conexión antes de construir el resto del sistema.
+6. Repositorio de código creado y con el primer commit → **Hecho: https://github.com/agcidoncha/facturas-amazon (rama `main`), con `render.yaml` (Web Service + Disco + Cron Job) y un esqueleto FastAPI probado localmente.**
+7. Crear el Blueprint en Render desde ese repositorio (Web Service + Disco + Cron Job) y el proyecto Postgres en Neon — pendiente, requiere que el usuario añada un método de pago en Render y cree la cuenta en Neon.
 
-Ninguno de estos pasos implica programar todavía.
+Los pasos 1-6 no implican programar. El paso 7 en adelante sí empieza a construir el sistema real.
 
 ## 11.1 Diseño técnico del backend (acordado 2026-07-13)
 
