@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app import models
 from app.carga import router as carga_router
 from app.db import Base, engine, get_db
+from app.vista import router as vista_router
 
 CRON_SECRET = os.environ.get("CRON_SECRET")
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Facturas Amazon", lifespan=lifespan)
 app.include_router(carga_router)
+app.include_router(vista_router)
 
 
 @app.get("/health")
