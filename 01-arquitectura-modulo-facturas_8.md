@@ -136,6 +136,8 @@ Cualquier otro dato disponible (desglose por campaña, detalle de ajustes, juris
 
 **Implementado y verificado en producción (13/07/2026):** tabla en `/facturas` (`app/vista.py`) con estas 8 columnas, protegida con autenticación básica HTTP (usuario cualquiera, contraseña = `APP_TOKEN`). Sin estilos todavía (fase visual pendiente, deliberadamente pospuesta a petición del usuario). Probado localmente contra Postgres real, incluyendo una prueba de inyección HTML para confirmar que los valores se escapan correctamente.
 
+**Ampliación (13/07/2026):** cada fila tiene un enlace "Ver" que lleva a `/facturas/{id}`, una página de detalle con **todos** los campos extraídos de esa factura (no solo las 8 columnas), en una lista simple sin agrupar (decisión deliberada: con el volumen de campos y usuarios de este proyecto, plegar/paginar añadiría complejidad sin beneficio real). Señala los campos marcados como "necesita revisión".
+
 ### 7.8 Tratamiento del "tipo de gasto" / concepto
 
 Se decide **no** usar una lista cerrada de categorías predefinidas. El sistema guardará el concepto tal como aparece en cada factura (ya sea texto legible como "Tarifas de logística de Amazon" o un código interno como `ais_fulfillment_by_amazon_fees_text`), y el usuario decidirá más adelante cómo agruparlos en categorías propias. Esto es coherente con el principio de extracción flexible (condición 2, sección 2) y evita que una categorización rígida quede obsoleta si Amazon introduce nuevos tipos de cargo.
