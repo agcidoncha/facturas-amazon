@@ -183,7 +183,7 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 - **Página de detalle por factura** (`/facturas/{id}`): todos los campos extraídos, no solo las 8 columnas (sección 7.7, ampliación).
 - **Exportación a Excel individual** (`/facturas/{id}/exportar.xlsx`): descarga solo esa factura con todos sus campos, complementando la exportación general.
 - **"Reprocesar" y "Reprocesar todas"**: vuelven a ejecutar el Módulo de Extracción sobre un PDF ya guardado (uno o todos), sin tener que volver a subirlo. Útil tanto para documentos subidos antes de tener la extracción completa, como para aplicar mejoras futuras del extractor a facturas ya cargadas.
-- **Página de inicio con tarjetas de módulo** (`/`): pensada para cuando la aplicación crezca con módulos más allá de facturas (sección 4, "preparado para crecer"). Hoy solo hay una tarjeta ("Gestión de Facturas"); añadir un módulo nuevo no debería exigir tocar los ya existentes.
+- **Página de inicio con tarjetas de módulo** (`/`): pensada para cuando la aplicación crezca con módulos más allá de facturas (sección 4, "preparado para crecer"). Hoy solo hay una tarjeta ("Gestión de Facturas"); añadir un módulo nuevo no debería exigir tocar los ya existentes. La navegación propia de un módulo ("Ver facturas" / "Subir facturas") solo se muestra dentro de ese módulo, no en la portada — cada módulo futuro debería seguir el mismo criterio.
 
 **Explícitamente fuera del MVP** (se decidirá más adelante, no ahora):
 - Consultas avanzadas personalizadas (más allá de la vista por defecto).
