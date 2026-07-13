@@ -4,3 +4,4 @@ requests
 pdfplumber
 sqlalchemy
 psycopg[binary]
+python-multipart
