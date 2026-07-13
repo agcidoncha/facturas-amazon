@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import models
 from app.db import get_db
-from extract_invoices import detect_document_type, detect_issuer, extract_text
+from app.extraccion import procesar_y_guardar
 
 router = APIRouter()
 
@@ -68,20 +68,10 @@ def subir_documentos(
         destino = PDF_STORAGE_PATH / f"{huella}.pdf"
         destino.write_bytes(contenido)
 
-        texto = extract_text(destino)
-        emisor = detect_issuer(texto)
-        tipo_documento = detect_document_type(texto)
-
-        db.add(models.Documento(
-            huella_sha256=huella,
-            archivo_origen=archivo.filename,
-            ruta_almacenamiento=str(destino),
-            emisor=emisor,
-            tipo_documento=tipo_documento,
-            estado="nuevo",
-        ))
-        db.commit()
-        guardados.append(f"{archivo.filename} ({emisor} / {tipo_documento})")
+        documento = procesar_y_guardar(db, destino, archivo.filename)
+        guardados.append(
+            f"{archivo.filename} ({documento.emisor} / {documento.tipo_documento} / {documento.estado})"
+        )
 
     filas = "".join(f"<li>{g}</li>" for g in guardados) or "<li>ninguno</li>"
     filas_dup = "".join(f"<li>{d}</li>" for d in duplicados) or "<li>ninguno</li>"
