@@ -602,15 +602,23 @@ td.num { text-align: right; font-variant-numeric: tabular-nums; }
    clases del sistema de diseño) */
 dialog.dialog {
   width: min(440px, calc(100vw - 32px));
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   padding: var(--space-4);
   border: none;
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: var(--shadow-lg);
   color: var(--color-text);
+}
+
+/* Sin esto, el diálogo se vería siempre en pantalla: al ponerle
+   "display" en la regla de arriba se pierde el display:none por
+   defecto del navegador para <dialog> sin abrir. Solo cuando el propio
+   navegador añade el atributo open (al llamar showModal()) pasa a
+   mostrarse como flex. */
+dialog.dialog[open] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
 dialog.dialog::backdrop {
