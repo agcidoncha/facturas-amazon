@@ -93,10 +93,12 @@ def formulario_subida():
     <p class="subtitulo">Descarga primero los PDF desde la Biblioteca de Documentos Fiscales de Amazon y súbelos aquí. La lectura de los datos es automática.</p>
     <div style="position:relative;max-width:520px">
       <form method="post" enctype="multipart/form-data" id="formulario-subida">
-        <div class="field campo-con-icono">
+        <div class="field">
           <label for="token">Contraseña</label>
-          {iconos.candado()}
-          <input class="input" type="password" id="token" name="token" placeholder="Contraseña compartida" required>
+          <div class="campo-con-icono">
+            {iconos.candado()}
+            <input class="input" type="password" id="token" name="token" placeholder="Contraseña compartida" required>
+          </div>
         </div>
         <div class="field">
           <label>Archivos PDF</label>
