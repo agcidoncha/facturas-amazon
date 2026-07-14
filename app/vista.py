@@ -2,11 +2,13 @@ import html
 import io
 import re
 from collections import defaultdict
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from openpyxl import Workbook
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app import iconos, models
@@ -74,8 +76,20 @@ def _formatear_valor(valor):
 
 
 def _etiqueta_estado(estado: str) -> str:
-    clase = "etiqueta-aviso" if estado == "necesita revisión" else "etiqueta-ok"
-    return f'<span class="etiqueta {clase}">{html.escape(estado)}</span>'
+    clase = "tag-accent" if estado == "necesita revisión" else "tag-neutral"
+    texto = "Revisión" if estado == "necesita revisión" else estado.capitalize()
+    return f'<span class="tag {clase}">{html.escape(texto)}</span>'
+
+
+def _hace_relativo(fecha) -> str:
+    if fecha is None:
+        return "sin subidas todavía"
+    dias = (datetime.now(timezone.utc).date() - fecha.date()).days
+    if dias <= 0:
+        return "hoy"
+    if dias == 1:
+        return "ayer"
+    return f"hace {dias} días"
 
 
 def _obtener_filas(db: Session) -> list[dict]:
@@ -120,6 +134,7 @@ def vista_facturas(
     filas = _obtener_filas(db)
     total = len(filas)
     necesitan_revision = sum(1 for f in filas if f["estado"] == "necesita revisión")
+    ultima_subida = db.query(func.max(models.Documento.fecha_carga)).scalar()
 
     def celda(etiqueta, valor, num=False):
         texto = html.escape(str(valor)) if valor not in (None, "") else ""
@@ -129,10 +144,10 @@ def vista_facturas(
     filas_tabla = []
     tarjetas_movil = []
     for f in filas:
-        acciones = [f'<a href="/facturas/{f["documento_id"]}" title="Ver">{iconos.ojo()}</a>']
+        acciones = [f'<a class="btn btn-ghost btn-icon" href="/facturas/{f["documento_id"]}" title="Ver">{iconos.ojo()}</a>']
         if not f["tiene_datos"]:
             acciones.append(
-                f'<a class="reprocesar" href="/facturas/{f["documento_id"]}/reprocesar" title="Reprocesar">{iconos.refrescar()}</a>'
+                f'<a class="btn btn-ghost btn-icon" href="/facturas/{f["documento_id"]}/reprocesar" title="Reprocesar">{iconos.refrescar()}</a>'
             )
         filas_tabla.append(
             "<tr>"
@@ -149,25 +164,23 @@ def vista_facturas(
         )
 
         boton_reprocesar_tarjeta = (
-            f'<a class="reprocesar" href="/facturas/{f["documento_id"]}/reprocesar">{iconos.refrescar(13)} Reprocesar</a>'
+            f'<a class="btn btn-ghost btn-icon" href="/facturas/{f["documento_id"]}/reprocesar" title="Reprocesar">{iconos.refrescar(14)}</a>'
             if not f["tiene_datos"] else ""
         )
         tarjetas_movil.append(f"""
-        <div class="tarjeta-factura">
+        <div class="card elev-sm tarjeta-factura">
           <div class="cabecera-tarjeta">
             <span class="fecha">{html.escape(str(f["fecha_documento"] or ""))}</span>
             {_etiqueta_estado(f["estado"])}
           </div>
-          <div class="numero">{html.escape(str(f["numero_documento"] or ""))}</div>
           <div class="info-secundaria">{html.escape(f["emisor"])} · {html.escape(f["tipo_gasto"] or "")}</div>
-          <div class="importes">
-            <span>Base {html.escape(str(f["base_imponible"] or ""))}</span>
-            <span>IVA {html.escape(str(f["iva"] or ""))}</span>
-            <span><strong>Total {html.escape(str(f["importe_total"] or ""))}</strong></span>
-          </div>
-          <div class="acciones-tarjeta">
-            <a class="ver" href="/facturas/{f["documento_id"]}">{iconos.ojo(13)} Ver</a>
-            {boton_reprocesar_tarjeta}
+          <div class="info-secundaria">Nº {html.escape(str(f["numero_documento"] or ""))}</div>
+          <div class="pie-tarjeta">
+            <span class="total">Total {html.escape(str(f["importe_total"] or ""))}</span>
+            <div style="display:flex;align-items:center;gap:4px">
+              {boton_reprocesar_tarjeta}
+              <a href="/facturas/{f["documento_id"]}">Ver →</a>
+            </div>
           </div>
         </div>
         """)
@@ -180,7 +193,7 @@ def vista_facturas(
           <div class="tarjetas-facturas">{"".join(tarjetas_movil)}</div>
         </div>
         <div class="mlp-table tabla-envoltura">
-          <table>
+          <table class="table">
             <thead><tr>{cabecera_html}</tr></thead>
             <tbody>{"".join(filas_tabla)}</tbody>
           </table>
@@ -189,34 +202,38 @@ def vista_facturas(
     else:
         contenido_lista = f"""
         <div class="estado-vacio">
-          <div class="icono-vacio">{iconos.caja_vacia()}</div>
-          <h2>Aún no hay facturas</h2>
-          <p>Cuando subas tus primeros PDF de Amazon, aparecerán aquí con todos sus datos ya extraídos.</p>
-          <a class="boton" href="/subir">Subir tus primeras facturas</a>
+          <div style="color:var(--color-accent)">{iconos.caja_vacia(40)}</div>
+          <h2>Todavía no hay facturas</h2>
+          <p>Sube los PDF que descargaste de Amazon y la aplicación leerá los datos por ti.</p>
+          <a class="btn btn-primary" href="/subir">{iconos.subir()} Subir tus primeras facturas</a>
         </div>
         """
 
     toast = f'<div class="toast">{html.escape(ok)}</div>' if ok else ""
 
     contenido = f"""
-    <h1>Facturas</h1>
-    <p class="subtitulo">{total} documentos · {necesitan_revision} necesitan revisión</p>
-    <div class="acciones">
-      <a class="boton" href="/subir">{iconos.subir()} Subir facturas</a>
-      <a class="boton-neutro" href="/facturas/exportar.xlsx">{iconos.descargar()} Exportar a Excel</a>
-      <button type="button" class="boton-neutro" onclick="document.getElementById('dialogo-reprocesar').showModal()">
-        {iconos.refrescar()} Reprocesar todas
-      </button>
+    <div class="acciones" style="justify-content:space-between;align-items:flex-end">
+      <div>
+        <h1 style="margin-bottom:4px">Facturas</h1>
+        <p class="subtitulo" style="margin:0">{total} facturas · {necesitan_revision} necesitan revisión · última subida {_hace_relativo(ultima_subida)}</p>
+      </div>
+      <div class="acciones" style="margin-bottom:0">
+        <a class="btn btn-primary" href="/subir">{iconos.subir()} Subir facturas</a>
+        <a class="btn btn-secondary" href="/facturas/exportar.xlsx">{iconos.descargar()} Exportar a Excel</a>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-reprocesar').showModal()">
+          {iconos.refrescar()} Reprocesar todas
+        </button>
+      </div>
     </div>
 
     {contenido_lista}
 
-    <dialog class="dialogo" id="dialogo-reprocesar">
-      <div class="titulo-dialogo">{iconos.alerta_triangulo(18)} ¿Reprocesar todas las facturas?</div>
-      <p>Se volverá a ejecutar la lectura automática de datos sobre las {total} facturas ya guardadas. Puede tardar unos segundos y no modifica los PDF originales.</p>
-      <div class="acciones-dialogo">
-        <button type="button" class="boton-neutro" onclick="document.getElementById('dialogo-reprocesar').close()">Cancelar</button>
-        <a class="boton" href="/facturas/reprocesar-todas">Reprocesar todas</a>
+    <dialog class="dialog" id="dialogo-reprocesar">
+      <div class="dialog-title">{iconos.alerta_triangulo(18)} ¿Reprocesar todas las facturas?</div>
+      <p class="dialog-body">Se volverá a ejecutar la lectura automática de datos sobre las {total} facturas ya guardadas. Puede tardar unos segundos y no modifica los PDF originales.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-reprocesar').close()">Cancelar</button>
+        <a class="btn btn-primary" href="/facturas/reprocesar-todas">Reprocesar todas</a>
       </div>
     </dialog>
 
@@ -302,11 +319,21 @@ def detalle_factura(
     grupos_html = ""
     for titulo, filas_grupo in _agrupar_campos(campos):
         filas_html = "".join(
-            f'<div class="fila-campo"><span class="nombre-campo">{html.escape(c.campo)}</span>'
-            f'<span class="valor-campo">{html.escape(_formatear_valor(c.valor))}</span></div>'
+            f"<tr><td>{html.escape(c.campo)}</td>"
+            f'<td>{html.escape(_formatear_valor(c.valor))}'
+            + (' <span class="tag tag-accent tag-inline">revisar</span>' if c.necesita_revision else "")
+            + "</td></tr>"
             for c in filas_grupo
         )
-        grupos_html += f'<div class="grupo-campos"><div class="titulo-grupo">{titulo}</div>{filas_html}</div>'
+        grupos_html += f"""
+        <div class="grupo-campos">
+          <h6>{titulo}</h6>
+          <table class="table">
+            <thead><tr><th style="width:38%">Campo</th><th>Valor</th></tr></thead>
+            <tbody>{filas_html}</tbody>
+          </table>
+        </div>
+        """
 
     if not campos:
         grupos_html = '<p class="texto-vacio">Sin datos extraídos todavía.</p>'
@@ -320,9 +347,9 @@ def detalle_factura(
         )
         aviso = f"""
         <div class="aviso">
-          {iconos.alerta_triangulo(17)}
+          {iconos.alerta_triangulo(18)}
           <div>
-            <div class="titulo-aviso">Necesita revisión manual</div>
+            <div class="titulo-aviso">{len(pendientes)} campo(s) necesitan revisión manual</div>
             {lineas}
           </div>
         </div>
@@ -331,29 +358,34 @@ def detalle_factura(
     relaciones_html = ""
     for r in relaciones:
         if r.documento_referenciado_id:
-            enlace = f'<a class="enlace-secundario" href="/facturas/{r.documento_referenciado_id}">Ver factura original →</a>'
+            enlace = f'<a href="/facturas/{r.documento_referenciado_id}">Ver factura original →</a>'
         else:
-            enlace = '<span style="color:var(--color-texto-suave)">no está en el sistema todavía.</span>'
+            enlace = '<span class="text-muted">no está en el sistema todavía.</span>'
         relaciones_html += (
             f'<div class="caja-relacion">Esta nota de crédito hace referencia a la factura '
             f'<strong>{html.escape(r.numero_factura_referenciada)}</strong> · {enlace}</div>'
         )
 
     contenido = f"""
-    <p><a class="enlace-secundario" href="/facturas">{iconos.flecha_izquierda()} Volver a facturas</a></p>
+    <a href="/facturas" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;text-decoration:none;color:var(--color-text);opacity:.7;margin-bottom:20px">{iconos.flecha_izquierda()} Volver a facturas</a>
     <div class="acciones" style="justify-content:space-between;align-items:flex-start">
-      <h1 style="margin-bottom:0">{html.escape(documento.archivo_origen)}</h1>
-      <a class="boton" href="/facturas/{documento_id}/exportar.xlsx">{iconos.descargar()} Exportar esta factura</a>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="color:var(--color-accent);margin-top:2px">{iconos.documento(26)}</div>
+        <div>
+          <h1 style="font-size:22px;margin-bottom:4px;word-break:break-all">{html.escape(documento.archivo_origen)}</h1>
+          <p class="subtitulo" style="margin:0">Subido el {documento.fecha_carga.strftime("%d/%m/%Y, %H:%M")}</p>
+        </div>
+      </div>
+      <a class="btn btn-secondary" href="/facturas/{documento_id}/exportar.xlsx">{iconos.descargar()} Exportar esta factura</a>
     </div>
-    <div class="tarjeta">
-      <dl class="ficha">
-        <div><dt>Emisor</dt><dd>{html.escape(documento.emisor)}</dd></div>
-        <div><dt>Tipo de documento</dt><dd>{html.escape(documento.tipo_documento)}</dd></div>
-        <div><dt>Tipo de gasto</dt><dd>{html.escape(documento.tipo_gasto or "(no encontrado)")}</dd></div>
-        <div><dt>Estado</dt><dd>{_etiqueta_estado(documento.estado)}</dd></div>
-        <div><dt>Subido</dt><dd>{documento.fecha_carga.strftime("%Y-%m-%d %H:%M")}</dd></div>
-      </dl>
+
+    <div class="rejilla-ficha">
+      <div class="campo-ficha"><span class="etiqueta-ficha">Emisor</span><span class="valor-ficha">{html.escape(documento.emisor)}</span></div>
+      <div class="campo-ficha"><span class="etiqueta-ficha">Tipo de documento</span><span class="valor-ficha">{html.escape(documento.tipo_documento)}</span></div>
+      <div class="campo-ficha"><span class="etiqueta-ficha">Tipo de gasto</span><span class="valor-ficha">{html.escape(documento.tipo_gasto or "(no encontrado)")}</span></div>
+      <div class="campo-ficha"><span class="etiqueta-ficha">Estado</span>{_etiqueta_estado(documento.estado)}</div>
     </div>
+
     {aviso}
     {grupos_html}
     {relaciones_html}

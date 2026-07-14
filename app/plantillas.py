@@ -14,13 +14,11 @@ def pagina(titulo: str, contenido: str, activo: str = "") -> str:
     def marca(nombre: str) -> str:
         return ' aria-current="page"' if nombre == activo else ""
 
-    nav = ""
+    enlaces_modulo = ""
     if activo in PAGINAS_MODULO_FACTURAS:
-        nav = f"""
-    <nav class="nav-principal">
+        enlaces_modulo = f"""
       <a href="/facturas"{marca("facturas")}>Ver facturas</a>
-      <a href="/subir"{marca("subir")}>Subir facturas</a>
-    </nav>"""
+      <a href="/subir"{marca("subir")}>Subir facturas</a>"""
 
     return f"""<!doctype html>
 <html lang="es">
@@ -31,11 +29,9 @@ def pagina(titulo: str, contenido: str, activo: str = "") -> str:
 <link rel="stylesheet" href="/static/estilo.css">
 </head>
 <body>
-<header class="cabecera">
-  <div class="contenedor">
-    <a class="titulo-app" href="/">Melopido</a>{nav}
-  </div>
-</header>
+<nav class="nav">
+  <a class="nav-brand" href="/">Melopido</a>{enlaces_modulo}
+</nav>
 <main class="contenedor">
 {contenido}
 </main>

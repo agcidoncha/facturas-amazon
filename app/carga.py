@@ -17,6 +17,8 @@ router = APIRouter()
 APP_TOKEN = os.environ.get("APP_TOKEN")
 PDF_STORAGE_PATH = Path(os.environ.get("PDF_STORAGE_PATH", "/var/data/facturas"))
 
+MAX_ITEMS_VISIBLES = 5
+
 SCRIPT_ZONA_SUBIDA = """
 <script>
 (function () {
@@ -88,24 +90,25 @@ SCRIPT_ZONA_SUBIDA = """
 def formulario_subida():
     contenido = f"""
     <h1>Subir facturas</h1>
-    <p class="subtitulo">Sube uno o varios PDF descargados de la Biblioteca de Documentos Fiscales de Amazon.</p>
-    <div class="tarjeta" style="position:relative">
+    <p class="subtitulo">Descarga primero los PDF desde la Biblioteca de Documentos Fiscales de Amazon y súbelos aquí. La lectura de los datos es automática.</p>
+    <div style="position:relative;max-width:520px">
       <form method="post" enctype="multipart/form-data" id="formulario-subida">
-        <div class="campo">
-          <label for="token">{iconos.candado()} Contraseña compartida</label>
-          <input type="password" id="token" name="token" required>
+        <div class="field campo-con-icono">
+          <label for="token">Contraseña</label>
+          {iconos.candado()}
+          <input class="input" type="password" id="token" name="token" placeholder="Contraseña compartida" required>
         </div>
-        <div class="campo">
+        <div class="field">
           <label>Archivos PDF</label>
           <label class="zona-subida" id="zona-subida">
-            <div class="icono-subida">{iconos.subir(17)}</div>
-            <div class="texto-principal">Arrastra tus PDF aquí o haz clic para seleccionar</div>
-            <div class="texto-secundario">Puedes seleccionar varios archivos a la vez</div>
+            <div style="color:var(--color-accent)">{iconos.subir(28)}</div>
+            <div class="texto-principal">Arrastra tus PDF aquí</div>
+            <div class="texto-secundario">o haz clic para seleccionar — puedes elegir varios a la vez</div>
             <input type="file" id="campo-archivos" name="archivos" accept="application/pdf" multiple required>
           </label>
           <ul class="lista-archivos" id="lista-archivos"></ul>
         </div>
-        <button type="submit" class="boton">{iconos.subir()} Subir facturas</button>
+        <button type="submit" class="btn btn-primary btn-block">{iconos.subir()} Subir facturas</button>
       </form>
       <div class="superposicion-carga" id="superposicion-carga" hidden>
         {iconos.refrescar(28)}
@@ -134,7 +137,7 @@ def subir_documentos(
 
     for archivo in archivos:
         if not archivo.filename.lower().endswith(".pdf"):
-            errores.append({"nombre": archivo.filename, "motivo": "no es un PDF"})
+            errores.append({"nombre": archivo.filename, "motivo": "No es un archivo PDF válido"})
             continue
 
         contenido = archivo.file.read()
@@ -142,7 +145,10 @@ def subir_documentos(
 
         ya_existe = db.query(models.Documento).filter_by(huella_sha256=huella).first()
         if ya_existe:
-            duplicados.append(archivo.filename)
+            duplicados.append({
+                "nombre": archivo.filename,
+                "subido": ya_existe.fecha_carga.strftime("%d/%m/%Y"),
+            })
             continue
 
         destino = PDF_STORAGE_PATH / f"{huella}.pdf"
@@ -152,57 +158,72 @@ def subir_documentos(
         guardados.append({
             "nombre": archivo.filename,
             "emisor": documento.emisor,
-            "tipo_gasto": documento.tipo_gasto or documento.tipo_documento,
+            "estado": documento.estado,
         })
+
+    def etiqueta_estado(estado):
+        clase = "tag-accent" if estado == "necesita revisión" else "tag-neutral"
+        texto = "Revisión" if estado == "necesita revisión" else estado.capitalize()
+        return f'<span class="tag {clase}">{html.escape(texto)}</span>'
 
     def bloque_guardados():
         if not guardados:
             return '<p class="texto-vacio">Ninguno esta vez.</p>'
+        visibles = guardados[:MAX_ITEMS_VISIBLES]
+        resto = len(guardados) - len(visibles)
         filas = "".join(
-            f'<li><span>{html.escape(g["nombre"])}</span>'
-            f'<span class="detalle-item">{html.escape(g["emisor"])} · {html.escape(g["tipo_gasto"])}</span></li>'
-            for g in guardados
+            f'<li><div class="nombre-item">{html.escape(g["nombre"])}</div>'
+            f'<div class="etiquetas-item">'
+            f'<span class="tag tag-neutral">{html.escape(g["emisor"])}</span>'
+            f'{etiqueta_estado(g["estado"])}'
+            f'</div></li>'
+            for g in visibles
         )
-        return f'<ul class="lista-resultado">{filas}</ul>'
+        extra = f'<li class="text-muted" style="font-size:12px">+ {resto} más</li>' if resto > 0 else ""
+        return f'<ul class="lista-resultado">{filas}{extra}</ul>'
 
     def bloque_duplicados():
         if not duplicados:
             return '<p class="texto-vacio">Ninguno esta vez.</p>'
-        filas = "".join(f'<li><span>{html.escape(d)}</span></li>' for d in duplicados)
-        return f'<ul class="lista-resultado">{filas}</ul>'
+        visibles = duplicados[:MAX_ITEMS_VISIBLES]
+        resto = len(duplicados) - len(visibles)
+        filas = "".join(
+            f'<li><div class="nombre-item">{html.escape(d["nombre"])}</div>'
+            f'<div class="detalle-item">Ya existía — subido el {d["subido"]}</div></li>'
+            for d in visibles
+        )
+        extra = f'<li class="text-muted" style="font-size:12px">+ {resto} más</li>' if resto > 0 else ""
+        return f'<ul class="lista-resultado">{filas}{extra}</ul>'
 
     def bloque_errores():
         if not errores:
             return '<p class="texto-vacio">Ninguno esta vez.</p>'
         filas = "".join(
-            f'<li><span>{html.escape(e["nombre"])}</span>'
-            f'<span class="detalle-item">{html.escape(e["motivo"])}</span></li>'
+            f'<li><div class="nombre-item">{html.escape(e["nombre"])}</div>'
+            f'<div class="detalle-item" style="color:var(--color-accent-700)">{html.escape(e["motivo"])}</div></li>'
             for e in errores
         )
         return f'<ul class="lista-resultado">{filas}</ul>'
 
     contenido_html = f"""
     <h1>Resultado de la subida</h1>
-    <p class="subtitulo">Esto es lo que ha pasado con cada archivo enviado.</p>
-
-    <div class="bloque-resultado">
-      <div class="titulo-bloque">{iconos.check_circulo()} Guardados ({len(guardados)})</div>
-      {bloque_guardados()}
+    <div class="rejilla-resultado">
+      <div class="card">
+        <div class="titulo-bloque">{iconos.check_circulo()} <div class="card-title" style="font-size:15px">Guardados ({len(guardados)})</div></div>
+        {bloque_guardados()}
+      </div>
+      <div class="card">
+        <div class="titulo-bloque tenue">{iconos.duplicado()} <div class="card-title" style="font-size:15px">Duplicados ({len(duplicados)})</div></div>
+        {bloque_duplicados()}
+      </div>
+      <div class="card">
+        <div class="titulo-bloque acento">{iconos.alerta_triangulo()} <div class="card-title" style="font-size:15px;color:var(--color-accent-700)">Errores ({len(errores)})</div></div>
+        {bloque_errores()}
+      </div>
     </div>
-
-    <div class="bloque-resultado">
-      <div class="titulo-bloque tenue">{iconos.duplicado()} Duplicados, ya existían ({len(duplicados)})</div>
-      {bloque_duplicados()}
-    </div>
-
-    <div class="bloque-resultado">
-      <div class="titulo-bloque acento">{iconos.alerta_triangulo()} Errores ({len(errores)})</div>
-      {bloque_errores()}
-    </div>
-
-    <div class="acciones">
-      <a class="boton" href="/subir">Subir más</a>
-      <a class="boton-neutro" href="/facturas">Ver panel de facturas</a>
+    <div class="acciones" style="margin-top:var(--space-6)">
+      <a class="btn btn-secondary" href="/subir">{iconos.subir()} Subir más</a>
+      <a class="btn btn-secondary" href="/facturas">Ver panel de facturas</a>
     </div>
     """
     return pagina("Resultado de la subida", contenido_html, activo="subir")

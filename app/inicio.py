@@ -15,16 +15,15 @@ router = APIRouter()
 MODULOS = [
     {
         "titulo": "Gestión de Facturas",
-        "descripcion": "Sube, consulta y exporta las facturas que Amazon emite al vendedor.",
+        "descripcion": "Sube, revisa y exporta las facturas que Amazon te cobra por logística, comisiones y publicidad.",
         "url": "/facturas",
-        "icono": iconos.documento(18),
+        "icono": iconos.documento(28),
     },
 ]
 
 
 @router.get("/", response_class=HTMLResponse)
 def inicio(_: None = Depends(verificar_credenciales), db: Session = Depends(get_db)):
-    total_facturas = db.query(func.count(models.Documento.id)).scalar() or 0
     necesitan_revision = (
         db.query(func.count(models.Documento.id))
         .filter(models.Documento.estado == "necesita revisión")
@@ -34,32 +33,21 @@ def inicio(_: None = Depends(verificar_credenciales), db: Session = Depends(get_
 
     tarjetas = "".join(
         f"""
-        <a class="tarjeta-modulo" href="{m['url']}">
-          <div class="icono-modulo">{m['icono']}</div>
-          <div class="etiqueta-modulo">Módulo</div>
-          <h2>{m['titulo']}</h2>
-          <p>{m['descripcion']}</p>
-          <div class="estadisticas-modulo">{total_facturas} facturas registradas · {necesitan_revision} por revisar</div>
+        <a class="card elev-sm tarjeta-modulo" href="{m['url']}">
+          <div style="color:var(--color-accent)">{m['icono']}</div>
+          <div class="card-title">{m['titulo']}</div>
+          <p class="card-body">{m['descripcion']}</p>
+          <div class="card-meta">{iconos.alerta_triangulo(13)} {necesitan_revision} necesitan revisión</div>
         </a>
         """
         for m in MODULOS
     )
 
-    tarjeta_proxima = f"""
-    <div class="tarjeta-modulo tarjeta-modulo-proxima">
-      <div class="icono-modulo">{iconos.mas_circulo(18)}</div>
-      <div class="etiqueta-modulo" style="color:var(--gris-600)">Próximamente</div>
-      <h2>Más módulos</h2>
-      <p>Este espacio crecerá con futuras herramientas de gestión de la empresa.</p>
-    </div>
-    """
-
     contenido = f"""
-    <h1>Melopido</h1>
-    <p class="subtitulo">Selecciona un módulo.</p>
+    <h1>Módulos</h1>
+    <p class="subtitulo">Elige el área de negocio que quieres gestionar.</p>
     <div class="rejilla-modulos">
       {tarjetas}
-      {tarjeta_proxima}
     </div>
     """
     return pagina("Inicio", contenido, activo="inicio")
