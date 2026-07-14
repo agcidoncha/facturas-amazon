@@ -39,5 +39,10 @@ def pagina(titulo: str, contenido: str, activo: str = "") -> str:
 <main class="contenedor">
 {contenido}
 </main>
+<script>
+  document.querySelectorAll(".toast").forEach(function (el) {{
+    setTimeout(function () {{ el.remove(); }}, 3200);
+  }});
+</script>
 </body>
 </html>"""
