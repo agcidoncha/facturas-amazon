@@ -126,15 +126,16 @@ Relación entre ellas: un Documento tiene muchos Datos extraídos (relación 1 a
 
 # 7. Identidad visual actual
 
-**Esto describe el estilo REAL ya implementado, sin inventar nada:**
+**Esto describe el estilo REAL ya implementado (segunda versión, "modernist", 14/07/2026), sin inventar nada:**
 
-- **Colores:** fondo general gris muy claro (`#f5f6f8`); superficies (tarjetas, cabecera, tabla) en blanco puro; texto principal casi negro (`#1f2430`); texto secundario gris medio (`#5a6472`); bordes gris claro (`#d8dce2`); color de acento/interactivo **azul** (`#2563eb`, variante oscura `#1d4ed8` para hover) usado en botones, enlaces y elementos activos; color de aviso en tono **naranja/ámbar** (`#b45309` sobre fondo `#fff7ed`, borde `#fcd9a8`) reservado exclusivamente para los avisos de "necesita revisión".
-- **Tipografía:** fuente del sistema operativo (no se carga ninguna fuente externa) — en Mac/iOS es San Francisco, en Windows Segoe UI, etc. Un único tamaño base con jerarquía por peso y tamaño: títulos de página (~1.4rem, negrita), texto de tabla algo más pequeño (~0.92rem), cabeceras de tabla en mayúsculas pequeñas (~0.8rem) con espaciado de letras.
-- **Espaciados:** sistema simple basado en una única variable de "espacio" (16px) reutilizada para paddings y separaciones; radios de borde consistentes (8px) en tarjetas, botones, inputs y tablas.
-- **Iconografía:** prácticamente inexistente — solo un símbolo de aviso (⚠) y una flecha (←) como caracteres de texto, sin librería de iconos.
-- **Jerarquía visual:** actualmente plana — un título por pantalla, tarjetas con el mismo peso visual entre sí, un único color de acento para todo lo interactivo (no hay una escala de énfasis entre acciones primarias/secundarias más allá de "botón sólido" vs. "enlace de texto").
-- **Responsive:** enfoque mobile-first con un único punto de corte en 640px. Por debajo de ese ancho: los paddings se reducen, la cabecera de las tablas se oculta y cada fila se convierte en una tarjeta apilada con pares etiqueta/valor, y las fichas de dos columnas pasan a una columna. Probado explícitamente en móvil vertical, tablet y escritorio.
-- **Estado general:** es deliberadamente una "primera versión" sencilla y funcional, no un diseño terminado — ver sección 9 para qué NO tocar y sección 10 para el margen de mejora real.
+- **Colores:** fondo general gris cálido muy claro (`#f3f2f2`); superficies (tarjetas, tabla) en un gris ligeramente más oscuro (`#eae9e9`); texto principal casi negro (`#201e1d`); color de acento **rojo/naranja intenso** (`#ec3013`, con variantes más oscuras para hover/texto sobre fondo claro); las etiquetas de "necesita revisión" usan el mismo acento (fondo sólido rojo, texto claro) para destacar, y "revisado" usa un gris neutro discreto.
+- **Tipografía:** una sola familia, "Archivo" (Google Fonts, cargada por `@import`), en dos pesos: 800 (muy negrita) para títulos y elementos destacados, 400 para el cuerpo del texto. Titulares grandes y contundentes (h1 de 32px en negrita).
+- **Espaciados:** sistema de variables de espacio (4/8/12/16/24/32px) reutilizado en toda la aplicación.
+- **Esquinas:** **totalmente rectas, sin bordes redondeados en ningún elemento** (radio 0 en tarjetas, botones, inputs, tablas, diálogo) — es una decisión estética deliberada de este segundo skin, no un olvido.
+- **Iconografía:** iconos SVG en línea (estilo trazo, heredan el color del texto) en prácticamente todas las acciones y estados — subir, descargar, reprocesar, ver, aviso, documento, candado, etc. (`app/iconos.py`).
+- **Jerarquía visual:** más marcada que en la primera versión — botones primarios sólidos en rojo, secundarios con borde, "ghost" solo icono para acciones de fila; etiquetas de estado con color sólido para lo que necesita atención.
+- **Responsive:** mismo enfoque mobile-first con punto de corte en 640px (tabla → tarjetas apiladas en móvil). Probado en móvil vertical, tablet y escritorio.
+- **Historial:** este es el **segundo** skin aplicado — sustituyó a una primera versión (paleta cálida crema+dorado, tipografía serif Cormorant Garamond+Lora, esquinas redondeadas) generada también con Claude Design a partir de una versión anterior de este documento. Ambos fueron implementaciones completas y funcionales; se optó por esta segunda.
 
 ---
 

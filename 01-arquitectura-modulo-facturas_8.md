@@ -174,7 +174,13 @@ Cuando el sistema detecta (vía huella/hash del PDF, sección 3.2) que una factu
 
 **MVP funcional completo.**
 
-**Fase visual — primera versión (13/07/2026):** estilo coherente en `app/static/estilo.css` (variables CSS centralizadas, fácil de ajustar) y plantilla compartida (`app/plantillas.py`) para que todas las pantallas se vean iguales. Responsive: en móvil en vertical (≤640px), la tabla de facturas se convierte en tarjetas apiladas en vez de forzar scroll horizontal. Deliberadamente sencillo por ahora — pendiente la opinión de la persona que gestionará las facturas en el día a día antes de refinar más.
+**Fase visual — primera versión (13/07/2026):** estilo propio coherente en `app/static/estilo.css`, responsive (tabla → tarjetas en móvil ≤640px). Deliberadamente sencillo, sin identidad de marca definida.
+
+**Fase visual — rediseño con Claude Design (13-14/07/2026):** se generó `PROJECT_FOR_DESIGN.md` (documento de contexto para una IA de diseño) y se probaron **dos propuestas completas** de Claude Design, ambas implementadas y verificadas en producción:
+1. "Classical": paleta crema+dorado, tipografía serif (Cormorant Garamond + Lora), esquinas redondeadas.
+2. "Modernist" (la vigente): tipografía Archivo en negrita, acento rojo/naranja, esquinas totalmente rectas, sistema de clases reutilizables (`.btn`/`.card`/`.tag`/`.table`).
+
+Ambos rediseños mantuvieron el 100% de la funcionalidad y añadieron mejoras reales de UX (arrastrar-soltar, diálogo de confirmación antes de "reprocesar todas", estado vacío ilustrado, campos agrupados y con aviso individual en el detalle, estadística de "última subida"). El diseño puede revertirse o cambiarse de nuevo vía `git revert`, ya que cada versión quedó en sus propios commits.
 
 **Justo después del MVP (segunda iteración inmediata, no una fase lejana):**
 5. Exportación a Excel. → **Hecho y verificado (13/07/2026):** `/facturas/exportar.xlsx`, mismas 8 columnas, importes como números reales (no texto) para poder sumarlos en Excel.
