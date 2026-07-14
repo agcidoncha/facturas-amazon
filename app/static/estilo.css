@@ -422,6 +422,10 @@ input[type="password"]:focus {
   gap: 12px;
 }
 
+.superposicion-carga[hidden] {
+  display: none;
+}
+
 .superposicion-carga .icono {
   animation: girar 1s linear infinite;
 }
