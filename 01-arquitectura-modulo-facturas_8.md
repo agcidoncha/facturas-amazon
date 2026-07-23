@@ -218,6 +218,18 @@ Se descartó el plan gratuito de *cómputo* de Render para el Web Service porque
 1. ~~Elegir un hosting en la nube adecuado para la aplicación~~ → Hecho: Render (workspace Hobby + cómputo de pago, ver arriba) + Neon (Postgres).
 2. Crear un subdominio en el panel del hosting actual de la empresa (ej. `facturas.melopido.shop`). → **Hecho: subdominio `facturas.melopido.shop` creado, con certificado SSL Let's Encrypt (HTTPS activo).**
 3. Configurar el DNS de ese subdominio para que apunte al nuevo hosting de la aplicación (Render). → **Hecho y verificado (13/07/2026):** registro CNAME `facturas` → `facturas-amazon-web.onrender.com` creado (sustituyendo el registro A anterior), dominio verificado en Render, certificado SSL emitido automáticamente. `https://facturas.melopido.shop/facturas` funciona igual que la URL de Render.
+
+**Incidente (24/07/2026): se borró por accidente la cuenta de Render.** Se perdieron el Web Service, el Disco (con los PDF originales ya subidos) y el Cron Job. **La base de datos en Neon no se vio afectada** (es un servicio aparte, fuera de Render) — todas las facturas ya extraídas se conservaron intactas, solo se perdieron los archivos PDF de origen de las facturas subidas hasta ese momento.
+
+**Recuperación (24/07/2026):**
+1. Cuenta de Render nueva creada.
+2. Blueprint recreado desde el mismo repositorio de GitHub (`render.yaml` sin cambios).
+3. `DATABASE_URL` configurado apuntando **a la misma base de datos de Neon** (no se creó una nueva) — así se conservan las facturas ya guardadas.
+4. Nueva URL de Render: `facturas-amazon-web-5ie8.onrender.com` (cambió el sufijo respecto a la anterior).
+5. DNS de `facturas.melopido.shop` actualizado para apuntar a la nueva URL.
+6. Verificado en producción: servidor activo, conexión a Neon correcta, tablas y datos intactos.
+
+**Lección aprendida:** los PDF originales solo existían en el disco de Render — si se pierde la cuenta, se pierden los archivos aunque los datos extraídos sobrevivan en Neon. Si el usuario conserva copias locales de los PDF ya subidos, se pueden volver a subir para restaurar la fuente de verdad (con la salvedad de que el sistema los detectará como "ya existentes" por la huella guardada en la base de datos, y no los reprocesará automáticamente).
 4. Registrar una aplicación de tipo desarrollador en Amazon Seller Central, para la conexión oficial (trámite en la web de Amazon, no programación). → **Hecho: perfil de desarrollador privado enviado (13/07/2026), aprobado por Amazon (13/07/2026).** Ya no hay ningún bloqueante externo pendiente para empezar a programar el Módulo de Conexión (3.1).
 5. Prueba de conexión antes de construir el resto del sistema.
 6. Repositorio de código creado y con el primer commit → **Hecho: https://github.com/agcidoncha/facturas-amazon (rama `main`), con `render.yaml` (Web Service + Disco + Cron Job) y un esqueleto FastAPI probado localmente.**
