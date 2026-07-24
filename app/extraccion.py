@@ -87,8 +87,17 @@ def reprocesar_documento(db: Session, documento: models.Documento) -> models.Doc
     """Vuelve a ejecutar la extracción sobre un documento ya guardado (por
     ejemplo, uno subido antes de que existiera este módulo), sustituyendo
     sus datos extraídos y relaciones anteriores.
+
+    Lanza FileNotFoundError si el PDF original ya no existe en el disco
+    (por ejemplo, tras perderse el disco de Render en un incidente) — quien
+    llama a esta función decide si eso debe detener un lote completo o solo
+    saltarse ese documento.
     """
-    resultado = process_invoice(Path(documento.ruta_almacenamiento))
+    ruta = Path(documento.ruta_almacenamiento)
+    if not ruta.exists():
+        raise FileNotFoundError(f"El PDF original ya no existe en el disco: {ruta}")
+
+    resultado = process_invoice(ruta)
 
     db.query(models.RelacionDocumento).filter_by(documento_id=documento.id).delete()
     db.query(models.DatoExtraido).filter_by(documento_id=documento.id).delete()

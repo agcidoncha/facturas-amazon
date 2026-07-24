@@ -3,6 +3,7 @@ import io
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -277,9 +278,23 @@ def exportar_excel(_: None = Depends(verificar_credenciales), db: Session = Depe
 @router.get("/facturas/reprocesar-todas")
 def reprocesar_todas(_: None = Depends(verificar_credenciales), db: Session = Depends(get_db)):
     documentos = db.query(models.Documento).all()
+    correctas = 0
+    sin_pdf = 0
     for documento in documentos:
-        reprocesar_documento(db, documento)
-    mensaje = quote(f"{len(documentos)} facturas reprocesadas correctamente")
+        try:
+            reprocesar_documento(db, documento)
+            correctas += 1
+        except FileNotFoundError:
+            db.rollback()
+            sin_pdf += 1
+
+    if sin_pdf:
+        mensaje = quote(
+            f"{correctas} facturas reprocesadas correctamente. "
+            f"{sin_pdf} no se pudieron reprocesar porque su PDF original ya no existe: elimínalas y vuelve a subirlas."
+        )
+    else:
+        mensaje = quote(f"{correctas} facturas reprocesadas correctamente")
     return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
 
 
@@ -376,7 +391,12 @@ def detalle_factura(
           <p class="subtitulo" style="margin:0">Subido el {documento.fecha_carga.strftime("%d/%m/%Y, %H:%M")}</p>
         </div>
       </div>
-      <a class="btn btn-secondary" href="/facturas/{documento_id}/exportar.xlsx">{iconos.descargar()} Exportar esta factura</a>
+      <div class="acciones" style="margin-bottom:0">
+        <a class="btn btn-secondary" href="/facturas/{documento_id}/exportar.xlsx">{iconos.descargar()} Exportar esta factura</a>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-eliminar').showModal()">
+          {iconos.papelera()} Eliminar
+        </button>
+      </div>
     </div>
 
     <div class="rejilla-ficha">
@@ -389,6 +409,15 @@ def detalle_factura(
     {aviso}
     {grupos_html}
     {relaciones_html}
+
+    <dialog class="dialog" id="dialogo-eliminar">
+      <div class="dialog-title">{iconos.alerta_triangulo(18)} ¿Eliminar esta factura?</div>
+      <p class="dialog-body">Se borrará el registro y el archivo PDF (si todavía existe en el servidor). Esta acción no se puede deshacer. Podrás volver a subir el mismo PDF después.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-eliminar').close()">Cancelar</button>
+        <a class="btn btn-primary" href="/facturas/{documento_id}/eliminar">Eliminar</a>
+      </div>
+    </dialog>
     """
     return pagina(f"Factura {documento.archivo_origen}", contenido, activo="facturas")
 
@@ -444,5 +473,31 @@ def reprocesar(
     documento = db.query(models.Documento).get(documento_id)
     if not documento:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
-    reprocesar_documento(db, documento)
+    try:
+        reprocesar_documento(db, documento)
+    except FileNotFoundError:
+        db.rollback()
+        mensaje = quote("El PDF original ya no existe: elimina esta factura y vuelve a subirla")
+        return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
     return RedirectResponse(url="/facturas?ok=Factura+reprocesada", status_code=303)
+
+
+@router.get("/facturas/{documento_id}/eliminar")
+def eliminar(
+    documento_id: int,
+    _: None = Depends(verificar_credenciales),
+    db: Session = Depends(get_db),
+):
+    documento = db.query(models.Documento).get(documento_id)
+    if not documento:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    ruta = Path(documento.ruta_almacenamiento)
+    if ruta.exists():
+        ruta.unlink()
+
+    db.delete(documento)
+    db.commit()
+
+    mensaje = quote("Factura eliminada")
+    return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
