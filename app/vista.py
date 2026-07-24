@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from openpyxl import Workbook
 from sqlalchemy import func
@@ -93,6 +93,16 @@ def _hace_relativo(fecha) -> str:
     return f"hace {dias} días"
 
 
+def _eliminar_documento(db: Session, documento: models.Documento) -> None:
+    """Borra el archivo PDF (si todavía existe) y el registro del documento
+    (sus datos_extraidos/relaciones caen en cascada por las FK). No hace
+    commit: quien llama decide si confirma uno o varios a la vez."""
+    ruta = Path(documento.ruta_almacenamiento)
+    if ruta.exists():
+        ruta.unlink()
+    db.delete(documento)
+
+
 def _obtener_filas(db: Session) -> list[dict]:
     documentos = db.query(models.Documento).order_by(models.Documento.fecha_carga.desc()).all()
     ids = [d.id for d in documentos]
@@ -150,8 +160,13 @@ def vista_facturas(
             acciones.append(
                 f'<a class="btn btn-ghost btn-icon" href="/facturas/{f["documento_id"]}/reprocesar" title="Reprocesar">{iconos.refrescar()}</a>'
             )
+        casilla = (
+            f'<td data-label=""><input type="checkbox" name="ids" value="{f["documento_id"]}" '
+            f'class="check-fila" form="form-eliminar-seleccionadas"></td>'
+        )
         filas_tabla.append(
             "<tr>"
+            + casilla
             + celda("Fecha", f["fecha_documento"])
             + celda("Emisor", f["emisor"])
             + celda("Tipo de gasto", f["tipo_gasto"])
@@ -171,7 +186,10 @@ def vista_facturas(
         tarjetas_movil.append(f"""
         <div class="card elev-sm tarjeta-factura">
           <div class="cabecera-tarjeta">
-            <span class="fecha">{html.escape(str(f["fecha_documento"] or ""))}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="checkbox" name="ids" value="{f["documento_id"]}" class="check-fila" form="form-eliminar-seleccionadas">
+              <span class="fecha">{html.escape(str(f["fecha_documento"] or ""))}</span>
+            </div>
             {_etiqueta_estado(f["estado"])}
           </div>
           <div class="info-secundaria">{html.escape(f["emisor"])} · {html.escape(f["tipo_gasto"] or "")}</div>
@@ -186,7 +204,13 @@ def vista_facturas(
         </div>
         """)
 
-    cabecera_html = "".join(f"<th>{etq}</th>" for etq in ["Fecha", "Emisor", "Tipo de gasto", "Nº factura", "Base", "IVA", "Total", "Estado", ""])
+    casilla_cabecera = (
+        '<th><input type="checkbox" id="check-todas" '
+        'onchange="document.querySelectorAll(\'.check-fila\').forEach(c=>c.checked=this.checked)"></th>'
+    )
+    cabecera_html = casilla_cabecera + "".join(
+        f"<th>{etq}</th>" for etq in ["Fecha", "Emisor", "Tipo de gasto", "Nº factura", "Base", "IVA", "Total", "Estado", ""]
+    )
 
     if filas:
         contenido_lista = f"""
@@ -224,8 +248,16 @@ def vista_facturas(
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-reprocesar').showModal()">
           {iconos.refrescar()} Reprocesar todas
         </button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-eliminar-seleccionadas').showModal()">
+          {iconos.papelera()} Eliminar seleccionadas
+        </button>
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-eliminar-todas').showModal()">
+          {iconos.papelera()} Eliminar todas
+        </button>
       </div>
     </div>
+
+    <form id="form-eliminar-seleccionadas" method="post" action="/facturas/eliminar-seleccionadas"></form>
 
     {contenido_lista}
 
@@ -235,6 +267,24 @@ def vista_facturas(
       <div class="dialog-actions">
         <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-reprocesar').close()">Cancelar</button>
         <a class="btn btn-primary" href="/facturas/reprocesar-todas">Reprocesar todas</a>
+      </div>
+    </dialog>
+
+    <dialog class="dialog" id="dialogo-eliminar-seleccionadas">
+      <div class="dialog-title">{iconos.alerta_triangulo(18)} ¿Eliminar las facturas seleccionadas?</div>
+      <p class="dialog-body">Se borrarán los registros marcados con la casilla y sus archivos PDF (si todavía existen). Esta acción no se puede deshacer.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-eliminar-seleccionadas').close()">Cancelar</button>
+        <button type="submit" form="form-eliminar-seleccionadas" class="btn btn-primary">Eliminar seleccionadas</button>
+      </div>
+    </dialog>
+
+    <dialog class="dialog" id="dialogo-eliminar-todas">
+      <div class="dialog-title">{iconos.alerta_triangulo(18)} ¿Eliminar todas las facturas?</div>
+      <p class="dialog-body">Se borrarán los {total} registros guardados y sus archivos PDF (si todavía existen). Esta acción no se puede deshacer.</p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" onclick="document.getElementById('dialogo-eliminar-todas').close()">Cancelar</button>
+        <a class="btn btn-primary" href="/facturas/eliminar-todas">Eliminar todas</a>
       </div>
     </dialog>
 
@@ -295,6 +345,36 @@ def reprocesar_todas(_: None = Depends(verificar_credenciales), db: Session = De
         )
     else:
         mensaje = quote(f"{correctas} facturas reprocesadas correctamente")
+    return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
+
+
+@router.get("/facturas/eliminar-todas")
+def eliminar_todas(_: None = Depends(verificar_credenciales), db: Session = Depends(get_db)):
+    documentos = db.query(models.Documento).all()
+    for documento in documentos:
+        _eliminar_documento(db, documento)
+    db.commit()
+
+    mensaje = quote(f"{len(documentos)} facturas eliminadas")
+    return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
+
+
+@router.post("/facturas/eliminar-seleccionadas")
+def eliminar_seleccionadas(
+    ids: list[int] = Form(default=[]),
+    _: None = Depends(verificar_credenciales),
+    db: Session = Depends(get_db),
+):
+    if not ids:
+        mensaje = quote("No se ha seleccionado ninguna factura")
+        return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
+
+    documentos = db.query(models.Documento).filter(models.Documento.id.in_(set(ids))).all()
+    for documento in documentos:
+        _eliminar_documento(db, documento)
+    db.commit()
+
+    mensaje = quote(f"{len(documentos)} facturas eliminadas")
     return RedirectResponse(url=f"/facturas?ok={mensaje}", status_code=303)
 
 
@@ -492,11 +572,7 @@ def eliminar(
     if not documento:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    ruta = Path(documento.ruta_almacenamiento)
-    if ruta.exists():
-        ruta.unlink()
-
-    db.delete(documento)
+    _eliminar_documento(db, documento)
     db.commit()
 
     mensaje = quote("Factura eliminada")
