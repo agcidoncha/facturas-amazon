@@ -230,6 +230,12 @@ Se descartó el plan gratuito de *cómputo* de Render para el Web Service porque
 6. Verificado en producción: servidor activo, conexión a Neon correcta, tablas y datos intactos.
 
 **Lección aprendida:** los PDF originales solo existían en el disco de Render — si se pierde la cuenta, se pierden los archivos aunque los datos extraídos sobrevivan en Neon. Si el usuario conserva copias locales de los PDF ya subidos, se pueden volver a subir para restaurar la fuente de verdad (con la salvedad de que el sistema los detectará como "ya existentes" por la huella guardada en la base de datos, y no los reprocesará automáticamente).
+
+**Arreglo post-incidente (24/07/2026):** los 3 documentos recuperados en Neon apuntaban a PDF que ya no existían en el disco nuevo (vacío), y "Reprocesar" (individual o "todas") no capturaba ese fallo, provocando un Internal Server Error en `/facturas/reprocesar-todas`. Se corrigió:
+- `reprocesar_documento()` (`app/extraccion.py`) ahora comprueba primero si el PDF existe en disco y lanza `FileNotFoundError` con un mensaje claro si no.
+- Las rutas `/facturas/reprocesar-todas` y `/facturas/{id}/reprocesar` (`app/vista.py`) capturan ese error: saltan el documento afectado (o informan del fallo puntual) en vez de romper toda la operación, mostrando un aviso al usuario.
+- Nueva ruta `/facturas/{id}/eliminar` (con botón y diálogo de confirmación en la ficha de detalle, mismo patrón visual que "Reprocesar todas"): borra el registro de la base de datos (con sus datos extraídos y relaciones, por las claves foráneas `CASCADE`) y el archivo físico si todavía existe. Permite eliminar los 3 registros huérfanos y volver a subir los PDF originales desde cero.
+- Verificado localmente contra un Postgres real (Homebrew) simulando el escenario exacto (documento con `ruta_almacenamiento` inexistente) antes de desplegar; confirmado en producción tras el despliegue automático vía GitHub → Render.
 4. Registrar una aplicación de tipo desarrollador en Amazon Seller Central, para la conexión oficial (trámite en la web de Amazon, no programación). → **Hecho: perfil de desarrollador privado enviado (13/07/2026), aprobado por Amazon (13/07/2026).** Ya no hay ningún bloqueante externo pendiente para empezar a programar el Módulo de Conexión (3.1).
 5. Prueba de conexión antes de construir el resto del sistema.
 6. Repositorio de código creado y con el primer commit → **Hecho: https://github.com/agcidoncha/facturas-amazon (rama `main`), con `render.yaml` (Web Service + Disco + Cron Job) y un esqueleto FastAPI probado localmente.**
